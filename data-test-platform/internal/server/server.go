@@ -388,6 +388,12 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 			"xr_auth_aut":          s.cfg.XrAuthAut,
 			"remote_log":           s.cfg.GetRemoteLogConfig(),
 			"remote_log_status":    s.remotePoller.GetStatus(),
+
+			// 项目 profile：前端根据这些渲染标题、环境和默认请求头，
+			// 不再在 JS 里写死任何域名或账号。
+			"project_name":    s.cfg.ProjectName,
+			"project_title":   s.cfg.ProjectTitle,
+			"profile_headers": s.resolvedHeaders(),
 		})
 		return
 	}
@@ -555,6 +561,8 @@ func (s *Server) handleK8sStart(w http.ResponseWriter, r *http.Request) {
 		Context:     s.cfg.K8s.Context,
 		Namespace:   env.Namespace,
 		App:         s.cfg.K8s.App,
+		AppLabel:    s.cfg.K8s.AppLabel,
+		LaneLabel:   s.cfg.K8s.LaneLabel,
 		Lane:        env.Lane,
 		Container:   s.cfg.K8s.Container,
 		Tail:        s.cfg.K8s.Tail,
@@ -694,16 +702,28 @@ func (s *Server) handleProcessStart(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewDecoder(r.Body).Decode(&body)
 
 	cmd := body.Command
-	if cmd == "" {
-		cmd = "./bin/data-service"
-	}
 	args := body.Args
-	if len(args) == 0 {
-		args = []string{"-conf", "configs"}
-	}
 	dir := body.Dir
-	if dir == "" {
-		dir = "../data-service"
+	// 默认启动命令来自 profile；未配置时不猜，免得拉起别的服务
+	if s.cfg.Run != nil {
+		if cmd == "" {
+			cmd = s.cfg.Run.Command
+		}
+		if len(args) == 0 {
+			args = s.cfg.Run.Args
+		}
+		if dir == "" {
+			dir = s.cfg.Run.Dir
+		}
+	}
+	if cmd == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "未指定启动命令，也没有在项目配置里提供 run.command",
+		})
+		return
+	}
+	if len(args) == 0 {
+		args = []string{}
 	}
 
 	if _, err := os.Stat(dir + "/" + cmd); os.IsNotExist(err) && !strings.Contains(cmd, "/") {
@@ -735,4 +755,27 @@ func (s *Server) Start(addr string) error {
 		Handler: s.Routes(),
 	}
 	return s.httpServer.ListenAndServe()
+}
+
+// resolvedHeaders 展开 profile 里的 ${var} 占位符。
+// Secret 的规则不回显真实值，只给掩码，避免密钥从 /api/config 泄漏。
+func (s *Server) resolvedHeaders() []config.HeaderRule {
+	rules := make([]config.HeaderRule, 0, len(s.cfg.ProfileHeaders))
+	profile := &config.ProjectProfile{Vars: s.cfg.ProfileVars}
+	for _, r := range s.cfg.ProfileHeaders {
+		out := r
+		out.Value = profile.ExpandVars(r.Value)
+		if r.Secret && out.Value != "" {
+			out.Value = maskSecret(out.Value)
+		}
+		rules = append(rules, out)
+	}
+	return rules
+}
+
+func maskSecret(v string) string {
+	if len(v) <= 6 {
+		return "***"
+	}
+	return v[:3] + "***" + v[len(v)-3:]
 }

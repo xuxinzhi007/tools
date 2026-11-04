@@ -12,8 +12,8 @@ func TestK8sTargetSelector(t *testing.T) {
 		want   string
 	}{
 		{"无 lane 看全部 pod", K8sTarget{App: "data-service"}, "app=data-service"},
-		{"指定 lane", K8sTarget{App: "data-service", Lane: "dev2"}, "app=data-service,x2robot.io/lane=dev2"},
-		{"默认 app", K8sTarget{}, "app=data-service"},
+		{"指定 lane", K8sTarget{App: "data-service", Lane: "dev2"}, "app=data-service,lane=dev2"},
+		{"默认 label 键", K8sTarget{App: "svc"}, "app=svc"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -34,11 +34,12 @@ func TestK8sTargetArgs(t *testing.T) {
 		App:        "data-service",
 		Lane:       "dev2",
 		Container:  "app",
+		LaneLabel:  "example.io/lane",
 	}.withDefaults()
 
 	got := strings.Join(target.args(200, true), " ")
 	want := "--kubeconfig /tmp/kc.yml --context dev-user-context -n ns-cloud-dev " +
-		"logs -f --tail=200 -l app=data-service,x2robot.io/lane=dev2 --container=app"
+		"logs -f --tail=200 -l app=data-service,example.io/lane=dev2 --container=app"
 	if got != want {
 		t.Fatalf("args = %q\nwant %q", got, want)
 	}

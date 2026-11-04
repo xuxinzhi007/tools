@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DataTest · data-service 接口测试与日志 SQL 监控</title>
+  <title>接口测试与日志 SQL 监控</title>
   <link rel="stylesheet" href="style.css">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'%3E%3Crect width='26' height='26' rx='7' fill='%233670e0'/%3E%3Cpath d='M8 9.5l3.4 3.5L8 16.5' stroke='%23fff' stroke-width='2.2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cline x1='14' y1='16.5' x2='18.5' y2='16.5' stroke='%23fff' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E">
 </head>
@@ -16,7 +16,7 @@
       </span>
       <div class="logo-text">
         <span class="app-title">DataTest</span>
-        <span class="app-subtitle">data-service · 接口测试 / 日志 SQL 监控</span>
+        <span class="app-subtitle">接口测试 / 日志 SQL 监控</span>
       </div>
     </div>
 
@@ -32,12 +32,9 @@
       <div class="env-selector">
         <span>环境</span>
         <select id="env-select" onchange="changeEnvironment()">
-          <option value="local">Local · 127.0.0.1:8005</option>
-          <option value="dev">Dev · dev-api.x2robot.com</option>
-          <option value="test">Test · test-api.x2robot.com</option>
-          <option value="custom">Custom · 自定义</option>
+          <option value="local">Local</option>
         </select>
-        <input type="text" id="target-base-url" placeholder="http://127.0.0.1:8005" onchange="updateBaseURL()">
+        <input type="text" id="target-base-url" placeholder="http://127.0.0.1:8000" onchange="updateBaseURL()">
       </div>
     </div>
 
@@ -406,11 +403,11 @@
             </div>
             <div class="form-group">
               <label for="auth-xr-sub-input">x-xr-auth-sub (Subject / 用户名)</label>
-              <input type="text" id="auth-xr-sub-input" value="pengcong@x2robot" placeholder="pengcong@x2robot">
+              <input type="text" id="auth-xr-sub-input" value="" placeholder="user@example.com">
             </div>
             <div class="form-group">
               <label for="auth-xr-tid-input">x-xr-auth-tid (租户 ID)</label>
-              <input type="text" id="auth-xr-tid-input" value="888888" placeholder="888888">
+              <input type="text" id="auth-xr-tid-input" value="" placeholder="租户 ID">
             </div>
           </div>
           <div class="form-group">
@@ -421,8 +418,8 @@
 
         <div class="form-group">
           <label for="auth-tenant-id-input">tenant-id (网关租户请求头)</label>
-          <input type="text" id="auth-tenant-id-input" value="888888" placeholder="888888">
-          <span class="hint">dev / test 网关路由必需的租户识别头 (如 888888)</span>
+          <input type="text" id="auth-tenant-id-input" value="" placeholder="租户 ID">
+          <span class="hint">网关路由的租户识别头，按项目实际填写</span>
         </div>
 
         <div class="form-group">
@@ -503,13 +500,13 @@
 
         <div class="form-group">
           <label for="remote-workflow-url-input">云日志检索接口地址 (DevOps Observability)</label>
-          <input type="text" id="remote-workflow-url-input" value="https://devops.x2robot.com/api/v1/observability/logs/query">
+          <input type="text" id="remote-workflow-url-input" value="" placeholder="https://your-observability-host/api/...">
         </div>
 
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
           <div class="form-group">
             <label for="remote-service-input">Service (目标服务名)</label>
-            <input type="text" id="remote-service-input" value="data-service" placeholder="data-service">
+            <input type="text" id="remote-service-input" value="" placeholder="服务名">
           </div>
           <div class="form-group">
             <label for="remote-source-input">Source (数据源)</label>
@@ -523,7 +520,7 @@
             <div class="section-title">Dev 开发环境配置</div>
             <div class="form-group" style="margin-bottom:0;">
               <label for="remote-dev-environment-input">Environment (环境标识/命名空间)</label>
-              <input type="text" id="remote-dev-environment-input" value="ns-cloud-dev">
+              <input type="text" id="remote-dev-environment-input" value="">
             </div>
           </div>
 
@@ -532,7 +529,7 @@
             <div class="section-title">Test 测试环境配置</div>
             <div class="form-group" style="margin-bottom:0;">
               <label for="remote-test-environment-input">Environment (环境标识/命名空间)</label>
-              <input type="text" id="remote-test-environment-input" value="ns-cloud-test">
+              <input type="text" id="remote-test-environment-input" value="">
             </div>
           </div>
 
@@ -541,7 +538,7 @@
             <div class="section-title">Prod 生产环境配置</div>
             <div class="form-group" style="margin-bottom:0;">
               <label for="remote-prod-environment-input">Environment (环境标识/命名空间)</label>
-              <input type="text" id="remote-prod-environment-input" value="ns-cloud-prod">
+              <input type="text" id="remote-prod-environment-input" value="">
             </div>
           </div>
         </div>

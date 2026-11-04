@@ -3,6 +3,7 @@ package proxy
 import (
 	"bytes"
 	"crypto/rand"
+	"data-test-platform/internal/pkg/directnet"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -43,15 +44,8 @@ type Proxy struct {
 func NewProxy() *Proxy {
 	transport := &http.Transport{
 		Proxy: func(req *http.Request) (*url.URL, error) {
-			host := req.URL.Hostname()
-			if host == "localhost" || host == "127.0.0.1" ||
-				strings.HasSuffix(host, ".x2robot.com") ||
-				strings.HasSuffix(host, ".x2robot.cn") ||
-				strings.HasSuffix(host, ".local") ||
-				strings.HasPrefix(host, "10.") ||
-				strings.HasPrefix(host, "172.") ||
-				strings.HasPrefix(host, "192.168.") {
-				return nil, nil
+			if directnet.IsDirect(req.URL.Hostname()) {
+				return nil, nil // 内部域名直连，绕过系统代理
 			}
 			return http.ProxyFromEnvironment(req)
 		},

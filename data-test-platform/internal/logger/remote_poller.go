@@ -3,6 +3,7 @@ package logger
 import (
 	"bytes"
 	"crypto/md5"
+	"data-test-platform/internal/pkg/directnet"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -154,15 +155,8 @@ type RemoteLogPoller struct {
 func NewRemoteLogPoller(cfg *config.Config, hub *Hub) *RemoteLogPoller {
 	transport := &http.Transport{
 		Proxy: func(req *http.Request) (*url.URL, error) {
-			host := req.URL.Hostname()
-			if host == "localhost" || host == "127.0.0.1" ||
-				strings.HasSuffix(host, ".x2robot.com") ||
-				strings.HasSuffix(host, ".x2robot.cn") ||
-				strings.HasSuffix(host, ".local") ||
-				strings.HasPrefix(host, "10.") ||
-				strings.HasPrefix(host, "172.") ||
-				strings.HasPrefix(host, "192.168.") {
-				return nil, nil // direct connection, bypass system proxy (e.g. Clash/Surge)
+			if directnet.IsDirect(req.URL.Hostname()) {
+				return nil, nil // 内部域名直连，绕过系统代理 (Clash/Surge)
 			}
 			return http.ProxyFromEnvironment(req)
 		},
@@ -541,27 +535,20 @@ func (p *RemoteLogPoller) pollOnce() {
 
 	workflowURL := rlCfg.WorkflowURL
 	if workflowURL == "" {
-		workflowURL = "https://devops.x2robot.com/api/v1/observability/logs/query"
+		p.mu.Lock()
+		p.lastError = "未配置远端日志查询地址 workflow_url，请在项目配置中提供"
+		p.mu.Unlock()
+		return
 	}
 
 	environment := envCfg.GetEnvironment()
-	if environment == "" {
-		switch targetEnv {
-		case "test":
-			environment = "ns-cloud-test"
-		case "prod":
-			environment = "ns-cloud-prod"
-		default:
-			environment = "ns-cloud-dev"
-		}
-	}
 
 	service := envCfg.Service
 	if service == "" {
 		service = rlCfg.Service
 	}
 	if service == "" {
-		service = "data-service"
+		service = rlCfg.Service
 	}
 
 	source := envCfg.Source
@@ -636,7 +623,10 @@ func (p *RemoteLogPoller) pollOnce() {
 func (p *RemoteLogPoller) TestConnection(params TestConnectionParams) (*RemoteLogTestResult, error) {
 	workflowURL := params.WorkflowURL
 	if workflowURL == "" {
-		workflowURL = "https://devops.x2robot.com/api/v1/observability/logs/query"
+		return &RemoteLogTestResult{
+			Success: false,
+			Message: "查询地址 workflow_url 不能为空",
+		}, nil
 	}
 	token := strings.TrimSpace(params.AuthToken)
 	if token == "" {
@@ -651,13 +641,13 @@ func (p *RemoteLogPoller) TestConnection(params TestConnectionParams) (*RemoteLo
 		environment = params.Namespace
 	}
 	if environment == "" {
-		environment = "ns-cloud-dev"
+		return &RemoteLogTestResult{
+			Success: false,
+			Message: "环境 environment/namespace 不能为空",
+		}, nil
 	}
 
 	service := params.Service
-	if service == "" {
-		service = "data-service"
-	}
 
 	source := params.Source
 	if source == "" {
@@ -772,27 +762,19 @@ func (p *RemoteLogPoller) SearchHistory(params SearchParams) (*SearchResult, err
 
 	workflowURL := rlCfg.WorkflowURL
 	if workflowURL == "" {
-		workflowURL = "https://devops.x2robot.com/api/v1/observability/logs/query"
+
+		return nil, fmt.Errorf("未配置远端日志查询地址 workflow_url，请在项目配置中提供")
+
 	}
 
 	environment := envCfg.GetEnvironment()
-	if environment == "" {
-		switch targetEnv {
-		case "test":
-			environment = "ns-cloud-test"
-		case "prod":
-			environment = "ns-cloud-prod"
-		default:
-			environment = "ns-cloud-dev"
-		}
-	}
 
 	service := envCfg.Service
 	if service == "" {
 		service = rlCfg.Service
 	}
 	if service == "" {
-		service = "data-service"
+		service = rlCfg.Service
 	}
 
 	source := envCfg.Source
@@ -815,7 +797,7 @@ func (p *RemoteLogPoller) SearchHistory(params SearchParams) (*SearchResult, err
 			startTime = endTime - int64((24 * time.Hour).Seconds())
 		}
 		if startTime >= endTime {
-			return nil, fmt.Errorf("自定义时间范围无效: 开始时间必须早于结束时间")
+			return nil, fmt.Errorf("未配置远端日志查询地址 workflow_url，请在项目配置中提供")
 		}
 	} else {
 		timeRange := strings.TrimSpace(params.TimeRange)

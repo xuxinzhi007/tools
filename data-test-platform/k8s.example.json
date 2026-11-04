@@ -8,9 +8,27 @@
   "container": "",
   "tail": 200,
   "environments": [
-    { "name": "dev",  "namespace": "ns-cloud-dev",  "lane": "dev" },
-    { "name": "dev2", "namespace": "ns-cloud-dev",  "lane": "dev2" },
-    { "name": "test", "namespace": "ns-cloud-test", "lane": "test" },
-    { "name": "全部", "namespace": "ns-cloud-dev",  "lane": "" }
-  ]
+    {
+      "name": "dev",
+      "namespace": "ns-cloud-dev",
+      "lane": "dev"
+    },
+    {
+      "name": "dev2",
+      "namespace": "ns-cloud-dev",
+      "lane": "dev2"
+    },
+    {
+      "name": "test",
+      "namespace": "ns-cloud-test",
+      "lane": "test"
+    },
+    {
+      "name": "全部",
+      "namespace": "ns-cloud-dev",
+      "lane": ""
+    }
+  ],
+  "app_label": "app",
+  "lane_label": "lane"
 }

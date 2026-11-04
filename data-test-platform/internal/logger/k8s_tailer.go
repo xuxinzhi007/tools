@@ -16,10 +16,10 @@ import (
 )
 
 const (
-	k8sAppLabel    = "app"
-	k8sLaneLabel   = "x2robot.io/lane"
-	k8sDefaultTail = 200
-	k8sStderrLimit = 64 * 1024
+	k8sDefaultAppLabel  = "app"
+	k8sDefaultLaneLabel = "lane"
+	k8sDefaultTail      = 200
+	k8sStderrLimit      = 64 * 1024
 )
 
 var errK8sStopped = errors.New("k8s source stopped")
@@ -31,8 +31,10 @@ type K8sTarget struct {
 	Kubeconfig  string
 	Context     string
 	Namespace   string
-	App         string // 默认 "data-service"
+	App         string // 必填，kubectl label selector 的 app=
 	Lane        string // 空 = 不过滤 lane，看全部 pod
+	AppLabel    string // 默认 "app"
+	LaneLabel   string // 默认 "lane"
 	Container   string
 	Tail        int
 }
@@ -41,21 +43,24 @@ func (t K8sTarget) withDefaults() K8sTarget {
 	if t.Kubectl == "" {
 		t.Kubectl = "kubectl"
 	}
-	if t.App == "" {
-		t.App = "data-service"
-	}
 	if t.Tail <= 0 {
 		t.Tail = k8sDefaultTail
+	}
+	if t.AppLabel == "" {
+		t.AppLabel = k8sDefaultAppLabel
+	}
+	if t.LaneLabel == "" {
+		t.LaneLabel = k8sDefaultLaneLabel
 	}
 	return t
 }
 
-// Selector 返回 label 选择器，如 app=data-service,x2robot.io/lane=dev2。
+// Selector 返回 label 选择器，如 app=<app>,<laneLabel>=dev2。
 func (t K8sTarget) Selector() string {
 	if t.Lane == "" {
-		return k8sAppLabel + "=" + t.App
+		return t.AppLabel + "=" + t.App
 	}
-	return k8sAppLabel + "=" + t.App + "," + k8sLaneLabel + "=" + t.Lane
+	return t.AppLabel + "=" + t.App + "," + t.LaneLabel + "=" + t.Lane
 }
 
 // describe 返回人类可读的来源描述。
@@ -255,7 +260,7 @@ func splitK8sPrefix(line string) (pod, body string) {
 		return "", line
 	}
 	head := line[:idx]
-	// pod 名形如 data-service-dev2-78d76496db-mscw6，含连字符且无 JSON 特征
+	// pod 名形如 <app>-<lane>-<hash>-<suffix>，含连字符且无 JSON 特征
 	if !strings.HasPrefix(head, "{") && strings.Count(head, "-") >= 2 && !strings.ContainsAny(head, "{}[]:") {
 		return head, line[idx+1:]
 	}

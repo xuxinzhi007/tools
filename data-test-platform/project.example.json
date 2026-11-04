@@ -1,0 +1,98 @@
+{
+  "_comment": "项目 profile。所有项目相关信息都在这里，程序本身不绑定任何具体项目。用 --project 加载。",
+  "name": "my-service",
+  "title": "接口测试与日志 SQL 监控",
+  "vars": {
+    "tenant": "000000",
+    "uid": "10001",
+    "user": "someone@example.com",
+    "role": "ADMIN"
+  },
+  "environments": [
+    {
+      "id": "local",
+      "name": "Local · 127.0.0.1:8000",
+      "base_url": "http://127.0.0.1:8000",
+      "route_prefix": "",
+      "description": "本地开发服务"
+    },
+    {
+      "id": "dev",
+      "name": "Dev · dev-api.example.com",
+      "base_url": "https://dev-api.example.com",
+      "route_prefix": "/core",
+      "description": "开发环境网关"
+    },
+    {
+      "id": "test",
+      "name": "Test · test-api.example.com",
+      "base_url": "https://test-api.example.com",
+      "route_prefix": "/core",
+      "description": "测试环境网关"
+    },
+    {
+      "id": "custom",
+      "name": "Custom · 自定义",
+      "base_url": "http://127.0.0.1:8000",
+      "route_prefix": "",
+      "description": "自定义地址"
+    }
+  ],
+  "headers": [
+    {
+      "key": "tenant-id",
+      "value": "${tenant}",
+      "desc": "租户"
+    },
+    {
+      "key": "x-auth-type",
+      "value": "jwt",
+      "desc": "认证类型"
+    },
+    {
+      "key": "x-auth-uid",
+      "value": "${uid}",
+      "desc": "用户 ID"
+    },
+    {
+      "key": "x-auth-sub",
+      "value": "${user}",
+      "desc": "Subject"
+    },
+    {
+      "key": "x-auth-tid",
+      "value": "${tenant}",
+      "desc": "租户 ID"
+    },
+    {
+      "key": "x-auth-aut",
+      "value": "${role}",
+      "desc": "角色"
+    }
+  ],
+  "remote_log": {
+    "workflow_url": "https://observability.example.com/api/v1/logs/query",
+    "auth_token": "",
+    "service": "my-service",
+    "source": "default",
+    "query_mode": "keyword",
+    "time_range": "realtime",
+    "page_size": 100,
+    "realtime": true,
+    "poll_interval_ms": 2000,
+    "environments": {
+      "dev": {
+        "environment": "ns-dev",
+        "service": "my-service"
+      },
+      "test": {
+        "environment": "ns-test",
+        "service": "my-service"
+      }
+    }
+  },
+  "direct_hosts": [
+    "example.com",
+    "example.cn"
+  ]
+}

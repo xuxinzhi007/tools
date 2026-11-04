@@ -16,15 +16,17 @@ const STATE = {
   environments: [],
   auth: {
     token: '',
-    tenantId: '888888',
-    userId: '563',
-    enableXrAuth: true,
-    xrAuthType: 'jwt',
-    xrAuthUid: '563',
-    xrAuthSub: 'pengcong@x2robot',
-    xrAuthTid: '888888',
-    xrAuthAut: 'SYS_ADMIN',
+    tenantId: '',
+    userId: '',
+    enableXrAuth: false,
+    xrAuthType: '',
+    xrAuthUid: '',
+    xrAuthSub: '',
+    xrAuthTid: '',
+    xrAuthAut: '',
     slowThreshold: '200ms',
+    // 由 /api/config 的 profile_headers 填充，代码里不写死任何网关头
+    profileHeaders: [],
   },
   customHeaders: [
     { key: 'Content-Type', value: 'application/json', enabled: true }
@@ -56,20 +58,16 @@ const STATE = {
   respSearchKeyword: '',
   remoteSearching: false,
   remoteLog: {
-    workflow_url: 'https://devops.x2robot.com/api/v1/observability/logs/query',
+    workflow_url: '',
     auth_token: '',
-    service: 'data-service',
+    service: '',
     source: 'default',
     query_mode: 'keyword',
     time_range: 'realtime',
     page_size: 100,
     poll_interval_ms: 2000,
     log_source: 'auto',
-    environments: {
-      dev: { environment: 'ns-cloud-dev', namespace: 'ns-cloud-dev', service: 'data-service', source: 'default' },
-      test: { environment: 'ns-cloud-test', namespace: 'ns-cloud-test', service: 'data-service', source: 'default' },
-      prod: { environment: 'ns-cloud-prod', namespace: 'ns-cloud-prod', service: 'data-service', source: 'default' }
-    }
+    environments: {}
   },
   remoteLogStatus: null,
 };
@@ -205,7 +203,22 @@ async function loadConfig() {
     }
     if (data.environments) {
       STATE.environments = data.environments;
+      populateEnvSelect(data.environments);
     }
+
+    // 项目 profile：标题与默认请求头全部由后端下发
+    if (data.project_name) {
+      STATE.projectName = data.project_name;
+    }
+    if (data.project_title) {
+      document.title = (data.project_name ? data.project_name + ' · ' : '') + data.project_title;
+      const sub = document.querySelector('.app-subtitle');
+      if (sub) sub.textContent = (data.project_name ? data.project_name + ' · ' : '') + '接口测试 / 日志 SQL 监控';
+    }
+    if (Array.isArray(data.profile_headers)) {
+      STATE.auth.profileHeaders = data.profile_headers;
+    }
+
     if (data.remote_log) {
       STATE.remoteLog = Object.assign(STATE.remoteLog, data.remote_log);
       const sel = document.getElementById('log-source-select');
@@ -228,25 +241,14 @@ function changeEnvironment() {
   const env = select.value;
   STATE.env = env;
 
-  let url = 'http://127.0.0.1:8005';
+  let url = '';
   let prefix = '';
 
   if (STATE.environments && STATE.environments.length > 0) {
-    const found = STATE.environments.find(e => e.id === env);
+    const found = STATE.environments.find(e => e.id === env) || STATE.environments[0];
     if (found) {
-      url = found.base_url;
+      url = found.base_url || '';
       prefix = found.route_prefix || '';
-    }
-  } else {
-    if (env === 'dev') {
-      url = 'https://dev-api.x2robot.com';
-      prefix = '/core';
-    } else if (env === 'test') {
-      url = 'https://test-api.x2robot.com';
-      prefix = '/core';
-    } else if (env === 'local') {
-      url = 'http://127.0.0.1:8005';
-      prefix = '';
     }
   }
   if (env === 'custom' && STATE.customBaseURL) {
@@ -608,25 +610,17 @@ function renderCustomHeadersTable() {
     tbody.appendChild(tr);
   }
 
-  // Gateway Auth Headers
-  if (STATE.auth.enableXrAuth) {
-    const xrHeaders = [
-      { k: 'x-xr-auth-type', v: STATE.auth.xrAuthType || 'jwt', desc: '认证类型' },
-      { k: 'x-xr-auth-uid', v: STATE.auth.xrAuthUid || '563', desc: '用户 ID' },
-      { k: 'x-xr-auth-sub', v: STATE.auth.xrAuthSub || 'pengcong@x2robot', desc: '用户/Subject' },
-      { k: 'x-xr-auth-tid', v: STATE.auth.xrAuthTid || STATE.auth.tenantId || '888888', desc: '租户 ID' },
-      { k: 'x-xr-auth-aut', v: STATE.auth.xrAuthAut || 'SYS_ADMIN', desc: '角色/权限' },
-    ];
-    xrHeaders.forEach(h => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td style="color:var(--info); font-weight:600;">${h.k}</td>
-        <td style="font-family:monospace;">${h.v}</td>
-        <td><span class="badge" style="background:rgba(88,166,255,0.12); color:var(--info);">网关鉴权</span></td>
-      `;
-      tbody.appendChild(tr);
-    });
-  }
+  // Profile 默认请求头（域名/租户/账号均由 --project 提供，不再写死）
+  const profileHeaders = STATE.auth.profileHeaders || [];
+  profileHeaders.forEach(h => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="color:var(--info); font-weight:600;">${escapeHTML(h.key)}</td>
+      <td style="font-family:monospace;">${escapeHTML(h.value)}</td>
+      <td><span class="badge" style="background:rgba(88,166,255,0.12); color:var(--info);">${escapeHTML(h.desc || '默认头')}</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
 
   // Auth Header row
   if (STATE.auth.token) {
@@ -713,9 +707,8 @@ async function sendAPIRequest() {
   // 2. Gateway x-xr-auth-*
   if (STATE.auth.enableXrAuth) {
     headers['x-xr-auth-type'] = STATE.auth.xrAuthType || 'jwt';
-    headers['x-xr-auth-uid'] = STATE.auth.xrAuthUid || '563';
-    headers['x-xr-auth-sub'] = STATE.auth.xrAuthSub || 'pengcong@x2robot';
-    headers['x-xr-auth-tid'] = STATE.auth.xrAuthTid || STATE.auth.tenantId || '888888';
+    const ph = STATE.auth.profileHeaders || [];
+    ph.forEach(h => { if (h.key) headers[h.key] = h.value; });
     headers['x-xr-auth-aut'] = STATE.auth.xrAuthAut || 'SYS_ADMIN';
   }
   if (STATE.auth.token) {
@@ -1144,9 +1137,9 @@ function copyCurlCommand() {
   }
   if (STATE.auth.enableXrAuth) {
     curl += `  -H "x-xr-auth-type: ${STATE.auth.xrAuthType || 'jwt'}" \\\n`;
-    curl += `  -H "x-xr-auth-uid: ${STATE.auth.xrAuthUid || '563'}" \\\n`;
-    curl += `  -H "x-xr-auth-sub: ${STATE.auth.xrAuthSub || 'pengcong@x2robot'}" \\\n`;
-    curl += `  -H "x-xr-auth-tid: ${STATE.auth.xrAuthTid || STATE.auth.tenantId || '888888'}" \\\n`;
+    (STATE.auth.profileHeaders || []).forEach(h => {
+      if (h.key) curl += `  -H "${h.key}: ${h.value}" \\\n`;
+    });
     curl += `  -H "x-xr-auth-aut: ${STATE.auth.xrAuthAut || 'SYS_ADMIN'}" \\\n`;
   }
   if (STATE.auth.token) {
@@ -1808,12 +1801,12 @@ function openAuthModal() {
   document.getElementById('slow-threshold-input').value = STATE.auth.slowThreshold || '200ms';
   document.getElementById('auth-enable-xr').checked = STATE.auth.enableXrAuth !== false;
   document.getElementById('auth-xr-type-input').value = STATE.auth.xrAuthType || 'jwt';
-  document.getElementById('auth-xr-uid-input').value = STATE.auth.xrAuthUid || '563';
-  document.getElementById('auth-xr-sub-input').value = STATE.auth.xrAuthSub || 'pengcong@x2robot';
-  document.getElementById('auth-xr-tid-input').value = STATE.auth.xrAuthTid || '888888';
+  document.getElementById('auth-xr-uid-input').value = STATE.auth.xrAuthUid || '';
+  document.getElementById('auth-xr-sub-input').value = STATE.auth.xrAuthSub || '';
+  document.getElementById('auth-xr-tid-input').value = STATE.auth.xrAuthTid || '';
   document.getElementById('auth-xr-aut-input').value = STATE.auth.xrAuthAut || 'SYS_ADMIN';
   const tenantInput = document.getElementById('auth-tenant-id-input');
-  if (tenantInput) tenantInput.value = STATE.auth.tenantId || '888888';
+  if (tenantInput) tenantInput.value = STATE.auth.tenantId || '';
   document.getElementById('modal-auth').style.display = 'flex';
 }
 function closeAuthModal() {
@@ -1829,7 +1822,7 @@ function saveAuthModal() {
   STATE.auth.xrAuthTid = document.getElementById('auth-xr-tid-input').value.trim();
   STATE.auth.xrAuthAut = document.getElementById('auth-xr-aut-input').value.trim();
   const tenantInput = document.getElementById('auth-tenant-id-input');
-  if (tenantInput) STATE.auth.tenantId = tenantInput.value.trim() || '888888';
+  if (tenantInput) STATE.auth.tenantId = tenantInput.value.trim() || '';
 
   document.getElementById('stat-threshold-val').textContent = STATE.auth.slowThreshold;
 
@@ -2121,10 +2114,10 @@ function populateRemoteLogModalInputs() {
   if (tokenInput && rl.auth_token !== undefined) tokenInput.value = rl.auth_token;
 
   const urlInput = document.getElementById('remote-workflow-url-input');
-  if (urlInput) urlInput.value = rl.workflow_url || 'https://devops.x2robot.com/api/v1/observability/logs/query';
+  if (urlInput) urlInput.value = rl.workflow_url || '';
 
   const serviceInput = document.getElementById('remote-service-input');
-  if (serviceInput) serviceInput.value = rl.service || 'data-service';
+  if (serviceInput) serviceInput.value = rl.service || '';
 
   const sourceInput = document.getElementById('remote-source-input');
   if (sourceInput) sourceInput.value = rl.source || 'default';
@@ -2141,17 +2134,17 @@ function populateRemoteLogModalInputs() {
   const pageSizeInput = document.getElementById('remote-page-size-input');
   if (pageSizeInput) pageSizeInput.value = rl.page_size || 100;
 
-  const devEnv = (rl.environments && rl.environments.dev) || { environment: 'ns-cloud-dev', namespace: 'ns-cloud-dev' };
+  const devEnv = (rl.environments && rl.environments.dev) || {};
   const devEnvInput = document.getElementById('remote-dev-environment-input');
-  if (devEnvInput) devEnvInput.value = devEnv.environment || devEnv.namespace || 'ns-cloud-dev';
+  if (devEnvInput) devEnvInput.value = devEnv.environment || devEnv.namespace || '';
 
-  const testEnv = (rl.environments && rl.environments.test) || { environment: 'ns-cloud-test', namespace: 'ns-cloud-test' };
+  const testEnv = (rl.environments && rl.environments.test) || {};
   const testEnvInput = document.getElementById('remote-test-environment-input');
-  if (testEnvInput) testEnvInput.value = testEnv.environment || testEnv.namespace || 'ns-cloud-test';
+  if (testEnvInput) testEnvInput.value = testEnv.environment || testEnv.namespace || '';
 
-  const prodEnv = (rl.environments && rl.environments.prod) || { environment: 'ns-cloud-prod', namespace: 'ns-cloud-prod' };
+  const prodEnv = (rl.environments && rl.environments.prod) || {};
   const prodEnvInput = document.getElementById('remote-prod-environment-input');
-  if (prodEnvInput) prodEnvInput.value = prodEnv.environment || prodEnv.namespace || 'ns-cloud-prod';
+  if (prodEnvInput) prodEnvInput.value = prodEnv.environment || prodEnv.namespace || '';
 }
 
 function openRemoteLogModal() {
@@ -2204,7 +2197,7 @@ function updateRemoteStatusBadge() {
     } else {
       badge.className = 'remote-status-badge remote-status-active';
       badge.textContent = `远端 ${envUpper} 监听中 (${status.logs_fetched || 0})`;
-      badge.title = `服务: ${status.service || 'data-service'}\n环境: ${status.environment || status.namespace}\n已拉取: ${status.logs_fetched || 0} 条日志`;
+      badge.title = `服务: ${status.service || ''}\n环境: ${status.environment || status.namespace}\n已拉取: ${status.logs_fetched || 0} 条日志`;
     }
   }
 
@@ -2511,7 +2504,7 @@ async function testRemoteLogConnection() {
 
   const token = document.getElementById('remote-token-input').value.trim();
   const workflowUrl = document.getElementById('remote-workflow-url-input').value.trim();
-  const service = (document.getElementById('remote-service-input')?.value || 'data-service').trim();
+  const service = (document.getElementById('remote-service-input')?.value || STATE.remoteLog.service || '').trim();
   const source = (document.getElementById('remote-source-input')?.value || 'default').trim();
   const queryMode = (document.getElementById('remote-query-mode-input')?.value || 'keyword').trim();
   const timeRange = (document.getElementById('remote-time-range-input')?.value || 'realtime').trim();
@@ -2519,14 +2512,14 @@ async function testRemoteLogConnection() {
   // Test the environment target selected in log source (fallback: dev)
   const activeSource = ['dev', 'test', 'prod'].includes(STATE.remoteLog && STATE.remoteLog.log_source)
     ? STATE.remoteLog.log_source : 'dev';
-  let environment = 'ns-cloud-dev';
+  let environment = '';
 
   if (activeSource === 'test') {
-    environment = (document.getElementById('remote-test-environment-input')?.value || 'ns-cloud-test').trim();
+    environment = (document.getElementById('remote-test-environment-input')?.value || '').trim();
   } else if (activeSource === 'prod') {
-    environment = (document.getElementById('remote-prod-environment-input')?.value || 'ns-cloud-prod').trim();
+    environment = (document.getElementById('remote-prod-environment-input')?.value || '').trim();
   } else {
-    environment = (document.getElementById('remote-dev-environment-input')?.value || 'ns-cloud-dev').trim();
+    environment = (document.getElementById('remote-dev-environment-input')?.value || '').trim();
   }
 
   if (!token) {
@@ -2586,16 +2579,16 @@ async function testRemoteLogConnection() {
 async function saveRemoteLogConfig() {
   const token = document.getElementById('remote-token-input').value.trim();
   const workflowUrl = document.getElementById('remote-workflow-url-input').value.trim();
-  const service = (document.getElementById('remote-service-input')?.value || 'data-service').trim();
+  const service = (document.getElementById('remote-service-input')?.value || STATE.remoteLog.service || '').trim();
   const source = (document.getElementById('remote-source-input')?.value || 'default').trim();
   const queryMode = (document.getElementById('remote-query-mode-input')?.value || 'keyword').trim();
   const timeRange = (document.getElementById('remote-time-range-input')?.value || 'realtime').trim();
   const pollInterval = parseInt(document.getElementById('remote-poll-interval-input').value) || 2000;
   const pageSize = parseInt(document.getElementById('remote-page-size-input').value) || 100;
 
-  const devEnv = (document.getElementById('remote-dev-environment-input')?.value || 'ns-cloud-dev').trim();
-  const testEnv = (document.getElementById('remote-test-environment-input')?.value || 'ns-cloud-test').trim();
-  const prodEnv = (document.getElementById('remote-prod-environment-input')?.value || 'ns-cloud-prod').trim();
+  const devEnv = (document.getElementById('remote-dev-environment-input')?.value || '').trim();
+  const testEnv = (document.getElementById('remote-test-environment-input')?.value || '').trim();
+  const prodEnv = (document.getElementById('remote-prod-environment-input')?.value || '').trim();
 
   const sel = document.getElementById('log-source-select');
   const logSource = sel ? sel.value : (STATE.remoteLog.log_source || 'auto');
@@ -2652,4 +2645,15 @@ async function saveRemoteLogConfig() {
   } catch (err) {
     showToast('保存配置失败: ' + err.message);
   }
+}
+
+// 环境下拉由 profile 驱动，不再写死在 HTML 里
+function populateEnvSelect(envs) {
+  const sel = document.getElementById('env-select');
+  if (!sel || !Array.isArray(envs)) return;
+  const current = STATE.env || sel.value;
+  sel.innerHTML = envs.map(e =>
+    `<option value="${escapeHTML(e.id)}">${escapeHTML(e.name || e.id)}</option>`
+  ).join('');
+  if (envs.some(e => e.id === current)) sel.value = current;
 }

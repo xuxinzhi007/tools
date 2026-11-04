@@ -15,6 +15,7 @@ import (
 	"data-test-platform/internal/config"
 	"data-test-platform/internal/logger"
 	"data-test-platform/internal/openapi"
+	"data-test-platform/internal/pkg/directnet"
 	"data-test-platform/internal/proxy"
 	"data-test-platform/internal/server"
 )
@@ -24,11 +25,12 @@ var staticFS embed.FS
 
 func main() {
 	port := flag.Int("port", 9099, "Web server listening port")
-	openAPIPath := flag.String("openapi", "../data-service/openapi.yaml", "Path to OpenAPI 3.0 specification file")
-	logFilePath := flag.String("log", "../data-service/logs/app.log", "Path to data-service application log file to tail")
-	targetURL := flag.String("target", "", "Default target data-service address (empty = auto-detect from configs/config.app.local.yaml)")
+	openAPIPath := flag.String("openapi", "openapi.yaml", "Path to OpenAPI 3.0 specification file")
+	logFilePath := flag.String("log", "app.log", "Path to application log file to tail")
+	targetURL := flag.String("target", "", "Default target service address (empty = use environment from --project)")
 	slowThresholdStr := flag.String("slow-threshold", "200ms", "Threshold for slow SQL marking (e.g. 200ms, 500ms)")
 	k8sConfigPath := flag.String("k8s-config", "", "Optional JSON file enabling the K8s log source (omit to disable)")
+	projectPath := flag.String("project", "", "Optional JSON project profile (environments, headers, remote log, project name)")
 	flag.Parse()
 
 	slowThreshold, err := time.ParseDuration(*slowThresholdStr)
@@ -51,6 +53,16 @@ func main() {
 			log.Fatalf("\u274c 加载 K8s 配置失败 %s: %v", *k8sConfigPath, err)
 		}
 	}
+
+	// 项目 profile：域名、环境、鉴权头都在这里，代码本身不绑定任何项目。
+	profile, err := config.LoadProfile(*projectPath)
+	if err != nil {
+		log.Fatalf("\u274c 加载项目配置失败 %s: %v", *projectPath, err)
+	}
+	cfg.ApplyProfile(profile)
+
+	// 内部域名直连规则由 profile 提供，代码里不含任何企业域名。
+	directnet.SetExtraSuffixes(cfg.DirectHosts)
 
 	parser := openapi.NewParser(cfg.OpenAPIPath)
 	proxyClient := proxy.NewProxy()

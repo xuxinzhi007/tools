@@ -66,6 +66,10 @@ func TestRemoteLogPollerParsingAndDedupV2(t *testing.T) {
 	cfg.RemoteLog.WorkflowURL = server.URL
 	cfg.RemoteLog.AuthToken = "test-token"
 	cfg.RemoteLog.LogSource = "dev"
+	// 默认配置不再内置具体环境（已改为 profile 驱动），测试自己声明
+	cfg.RemoteLog.Environments = map[string]config.RemoteLogEnvConfig{
+		"dev": {Environment: "ns-dev", Namespace: "ns-dev", Service: "svc"},
+	}
 
 	parser := NewLogParser(10 * time.Millisecond)
 	hub := NewHub(parser)
@@ -81,11 +85,11 @@ func TestRemoteLogPollerParsingAndDedupV2(t *testing.T) {
 	}
 
 	// Verify query body parameters
-	if receivedBody["environment"] != "ns-cloud-dev" {
-		t.Errorf("expected request environment 'ns-cloud-dev', got '%v'", receivedBody["environment"])
+	if receivedBody["environment"] != "ns-dev" {
+		t.Errorf("expected request environment 'ns-dev', got '%v'", receivedBody["environment"])
 	}
-	if receivedBody["service"] != "data-service" {
-		t.Errorf("expected request service 'data-service', got '%v'", receivedBody["service"])
+	if receivedBody["service"] != "svc" {
+		t.Errorf("expected request service 'svc', got '%v'", receivedBody["service"])
 	}
 	if receivedBody["queryMode"] != "keyword" {
 		t.Errorf("expected request queryMode 'keyword', got '%v'", receivedBody["queryMode"])
@@ -210,6 +214,9 @@ func TestRemoteLogPollerSearchHistory(t *testing.T) {
 	cfg.RemoteLog.WorkflowURL = server.URL
 	cfg.RemoteLog.AuthToken = "test-token"
 	cfg.RemoteLog.LogSource = "test"
+	cfg.RemoteLog.Environments = map[string]config.RemoteLogEnvConfig{
+		"test": {Environment: "ns-test", Namespace: "ns-test", Service: "svc"},
+	}
 
 	parser := NewLogParser(10 * time.Millisecond)
 	hub := NewHub(parser)
@@ -307,6 +314,10 @@ func TestRemoteLogPollerSearchHistoryCustomRange(t *testing.T) {
 	cfg.RemoteLog.WorkflowURL = server.URL
 	cfg.RemoteLog.AuthToken = "test-token"
 	cfg.RemoteLog.LogSource = "dev"
+	// 默认配置不再内置具体环境（已改为 profile 驱动），测试自己声明
+	cfg.RemoteLog.Environments = map[string]config.RemoteLogEnvConfig{
+		"dev": {Environment: "ns-dev", Namespace: "ns-dev", Service: "svc"},
+	}
 
 	poller := NewRemoteLogPoller(cfg, NewHub(NewLogParser(10*time.Millisecond)))
 

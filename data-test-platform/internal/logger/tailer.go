@@ -128,7 +128,7 @@ func (t *FileTailer) tailLoop(ctx context.Context) {
 	}
 }
 
-// ProcessRunner manages running the data-service subprocess
+// ProcessRunner 管理被测试服务的子进程（命令由调用方指定）
 type ProcessRunner struct {
 	hub        *Hub
 	cmd        *exec.Cmd
