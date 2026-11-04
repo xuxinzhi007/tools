@@ -1,0 +1,3 @@
+- insert:
+    - id: workflow-hud
+      name: '@local/dsh-workflow-hud'

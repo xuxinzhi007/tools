@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Workflow HUD",
+    "description": "A floating workflow-state cockpit that scopes a data-workflow run to its conversation, shows every stage's gate, required fields, artifacts, evidence, verify result and runner gate log, and draws them as a full-viewport cyber web-crawler data web."
+  }
+}

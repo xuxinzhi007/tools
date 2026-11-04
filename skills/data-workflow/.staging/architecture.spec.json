@@ -1,0 +1,324 @@
+{
+  "title": "data-workflow · 分层架构 v0.2",
+  "subtitle": "技能只装流程；业务事实由 config.yaml 指向的知识源运行时加载，绝不内嵌",
+  "width": 1120,
+  "height": 1540,
+  "cards": [
+    {
+      "title": "L0 薄编排器 · data-workflow",
+      "sub": "skills/data-workflow/SKILL.md · 零业务事实",
+      "theme": "dark",
+      "x": 30,
+      "y": 100,
+      "w": 1060,
+      "h": 170,
+      "items": [
+        "启动：paths.sh 解析外部路径 → repo_snapshot.sh 记 branch/commit/dirty → knowledge_drift.sh 标 FRESH/STALE（一次会话只跑一次）",
+        "只做四件事：查重 · 选型 · 选工作流 · 守六道门。判断留在主 agent，取证才外包给子 agent"
+      ]
+    },
+    {
+      "title": "工作流状态机 · workflows/*.json",
+      "sub": "feature · bugfix · hotfix · review-only",
+      "theme": "blue",
+      "x": 30,
+      "y": 306,
+      "w": 520,
+      "h": 160,
+      "items": [
+        "阶段序列 + 每阶段技能 + 门禁 + 能否派子 agent",
+        "新业务场景 = 写新模板（重排现有技能），不是加新技能"
+      ]
+    },
+    {
+      "title": "工件模板 · templates/*.md",
+      "sub": "spec · plan · impact · change-note · rollback",
+      "theme": "green",
+      "x": 570,
+      "y": 306,
+      "w": 520,
+      "h": 160,
+      "items": [
+        "模板内嵌 GATE 声明，没内容写「无」，不许删段落",
+        "产物落 $REPO/specs/<feature>/ —— 对话会被压缩，工件不会"
+      ]
+    },
+    {
+      "title": "需求分析",
+      "sub": "requirement-analysis · + debt-gate.md",
+      "theme": "green",
+      "x": 30,
+      "y": 502,
+      "w": 340,
+      "h": 150,
+      "items": [
+        "九项负债评估先于选方案",
+        "方案 ≥2 且必含最小改动"
+      ]
+    },
+    {
+      "title": "影响面评估",
+      "sub": "impact-assessment · + blast-radius.md",
+      "theme": "orange",
+      "x": 390,
+      "y": 502,
+      "w": 340,
+      "h": 150,
+      "items": [
+        "四轴：调用方/状态机/权限/回滚",
+        "每项带证据或 UNVERIFIED"
+      ]
+    },
+    {
+      "title": "技术方案",
+      "sub": "tech-design",
+      "theme": "blue",
+      "x": 750,
+      "y": 502,
+      "w": 340,
+      "h": 150,
+      "items": [
+        "套 $TECH_DESIGN_TEMPLATE",
+        "同时落 plan.md + rollback.md"
+      ]
+    },
+    {
+      "title": "实现",
+      "sub": "implementation · + go-style · reuse-gate",
+      "theme": "purple",
+      "x": 30,
+      "y": 668,
+      "w": 340,
+      "h": 150,
+      "items": [
+        "先搜再写，重复三次才抽象",
+        "禁止实现类子 agent 并行"
+      ]
+    },
+    {
+      "title": "改动审核（三轴）",
+      "sub": "change-review · + standards-spec.md",
+      "theme": "orange",
+      "x": 390,
+      "y": 668,
+      "w": 340,
+      "h": 150,
+      "items": [
+        "共读同一份 diff.patch",
+        "review 指纹一变即 STALE"
+      ]
+    },
+    {
+      "title": "质量门",
+      "sub": "quality-gate",
+      "theme": "red",
+      "x": 750,
+      "y": 668,
+      "w": 340,
+      "h": 150,
+      "items": [
+        "构建 + 聚焦单测 + 覆盖率",
+        "每个 ✓ 后面必须跟真实输出"
+      ]
+    },
+    {
+      "title": "接口门（三级）",
+      "sub": "interface-test · + contract-gates.md",
+      "theme": "red",
+      "x": 30,
+      "y": 834,
+      "w": 340,
+      "h": 150,
+      "items": [
+        "契约测试 → proto 破坏性 diff → 回放",
+        "四态 PASS/CONCERNS/FAIL/WAIVED"
+      ]
+    },
+    {
+      "title": "文档审计 + 提交 / MR",
+      "sub": "git-commit",
+      "theme": "dark",
+      "x": 390,
+      "y": 834,
+      "w": 340,
+      "h": 150,
+      "items": [
+        "提交前核对 specs/README/CONTEXT",
+        "不同步必须记账，不许沉默提交"
+      ]
+    },
+    {
+      "title": "线上排查（旁路）",
+      "sub": "oncall · + 7 refs",
+      "theme": "blue",
+      "x": 750,
+      "y": 834,
+      "w": 340,
+      "h": 150,
+      "items": [
+        "状态族隔离 · 证据阶梯 6 层",
+        "仓库只读，诊断不授权修改"
+      ]
+    },
+    {
+      "title": "画图（旁路）",
+      "sub": "excalidraw-diagram",
+      "theme": "green",
+      "x": 30,
+      "y": 1000,
+      "w": 340,
+      "h": 150,
+      "items": [
+        "spec JSON → svg/excalidraw/png",
+        "README 两张图即产出"
+      ]
+    },
+    {
+      "title": "多 agent 协议",
+      "sub": "references/subagent-protocol.md",
+      "theme": "purple",
+      "x": 390,
+      "y": 1000,
+      "w": 340,
+      "h": 150,
+      "items": [
+        "brief/report/ledger 落盘抗压缩",
+        "取证可并行，裁决不可并行"
+      ]
+    },
+    {
+      "title": "渐进披露",
+      "sub": "3 级加载 · 硬性约束",
+      "theme": "red",
+      "x": 750,
+      "y": 1000,
+      "w": 340,
+      "h": 150,
+      "items": [
+        "名称+描述常驻 → SKILL.md 触发才读",
+        "references 点名才读，一次一个域文件"
+      ]
+    },
+    {
+      "title": "L2 业务事实 F2 · $KNOW / $CARDS",
+      "sub": "路径来自 config.yaml，Obsidian / 仓库 docs / 任意目录都行",
+      "theme": "orange",
+      "x": 30,
+      "y": 1186,
+      "w": 520,
+      "h": 150,
+      "items": [
+        "按业务域拆分，一次只读一个文件",
+        "卡片带 verified_commit + watches，可被门禁判过期"
+      ]
+    },
+    {
+      "title": "L2 工程事实 F1 · 仓库成文规范",
+      "sub": "落点按 project-index 解析，不假设 IDE 目录",
+      "theme": "purple",
+      "x": 570,
+      "y": 1186,
+      "w": 520,
+      "h": 150,
+      "items": [
+        "分层 / 生成物 / 构建命令",
+        "多数 agent 不自动加载别家 IDE 的目录，需显式 Read"
+      ]
+    },
+    {
+      "title": "L3 权威 · 代码 / 生成物 / 聚焦测试",
+      "sub": "永不上抄 —— 技能与知识层只放指针",
+      "theme": "dark",
+      "x": 30,
+      "y": 1372,
+      "w": 1060,
+      "h": 128,
+      "items": [
+        "易变性测试：一次提交就能证伪的句子 = 事实，进知识层；不会 = 流程，进技能。指针是流程，取值是事实"
+      ]
+    }
+  ],
+  "arrows": [
+    {
+      "startX": 560,
+      "startY": 270,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          36
+        ]
+      ],
+      "label": "选场景 → 选模板",
+      "labelPos": {
+        "x": 645,
+        "y": 288,
+        "w": 150
+      }
+    },
+    {
+      "startX": 560,
+      "startY": 466,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          36
+        ]
+      ],
+      "label": "按阶段路由技能",
+      "labelPos": {
+        "x": 650,
+        "y": 484,
+        "w": 150
+      }
+    },
+    {
+      "startX": 560,
+      "startY": 1150,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          36
+        ]
+      ],
+      "label": "点名才读 · 一次一个域文件",
+      "labelPos": {
+        "x": 690,
+        "y": 1168,
+        "w": 210
+      }
+    },
+    {
+      "startX": 560,
+      "startY": 1336,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          36
+        ]
+      ],
+      "label": "取值一律回代码核对",
+      "labelPos": {
+        "x": 672,
+        "y": 1354,
+        "w": 175
+      }
+    }
+  ],
+  "configBoxes": []
+}

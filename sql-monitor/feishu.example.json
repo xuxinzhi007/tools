@@ -1,0 +1,24 @@
+{
+  "source": {"mode": "file", "path": "/tmp/data-service-local.log"},
+  "port": 8767,
+  "max_events": 2000,
+  "initial_bytes": 0,
+  "analysis": {
+    "enabled": true,
+    "command": ["/Users/xuxinzhi/Documents/gowork/tools/qoder-mcp/.venv/bin/python", "/Users/xuxinzhi/Documents/gowork/tools/qoder-mcp/analyze.py"],
+    "cwd": "",
+    "timeout_seconds": 600,
+    "max_hotspots": 5
+  },
+  "feishu": {
+    "enabled": false,
+    "project": "data-service local",
+    "app_id": "",
+    "app_secret": "",
+    "recipients": [
+      {"name": "自己", "email": "xuxinzhi@x2robot.com"}
+    ],
+    "interval_seconds": 300,
+    "slow_ms": 200
+  }
+}

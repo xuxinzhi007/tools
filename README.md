@@ -1,34 +1,55 @@
-# system_tags.json 可视化编辑
+# tools
 
-改质检标签的 `device_scope`（任务类型 / 本体 / 设备型号），不用手改大 JSON。
-
-## 用法
+个人工具仓库。所有工具通过 **toolbox** 控制台统一启动，不用再翻目录找 `make run`。
 
 ```bash
-cd /Users/xuxinzhi/Documents/gowork/tools/system_tags_editor
-python3 serve.py
-# 局域网访问（手机/同事机器）：
-python3 serve.py --host 0.0.0.0   # 启动时会打印 LAN 地址
+make toolbox        # → http://127.0.0.1:7700
+make toolbox-stop   # 停掉全部子工具
 ```
 
-浏览器打开提示的地址（默认 http://127.0.0.1:8765）。
+配置集中在 `~/.toolbox/`（凭证 + 工具清单），换机恢复见 [toolbox/README.md](toolbox/README.md)。
 
-- **从仓库加载 / 写回仓库**：读写  
-  `../../data-service/configs/tag/system_tags.json`
-- **预览**：写回前弹窗展示紧凑文本与仓库当前内容的行级 diff，确认后才落盘
-- 也可本地选文件导入、导出下载
+## 工具索引
 
-## 写回格式（compact serializer）
+### 本地 Web 工具（由 toolbox 启停）
 
-写回与导出共用 `format_tags.py`，按仓库手写紧凑风格序列化，不会把整文件 `indent=2` 铺开：
+| 工具 | 端口 | 用途 |
+|---|---|---|
+| [data-test-platform](data-test-platform/) | 9099 | OpenAPI 接口测试 + 实时日志 + 慢 SQL 聚合 + 分屏联调 |
+| [system_tags_editor](system_tags_editor/) | 8765 | `system_tags.json` 可视化编辑 + 预训练重刷 / 脏数据修复 / List转Init |
+| [sql-monitor](sql-monitor/) | 8767 | 慢 SQL 捕获、飞书告警、K8s 日志跟踪（CLI 采集后端） |
+| [quality-gate](quality-gate/) | 8080 | AI 工作区文件管理 + MCP 工具集 |
 
-- 叶子节点 1~2 行：`{ "code": ..., "name": ...,` + `"device_scope": { ... } }`
-- 带 children 的节点保持展开式；键顺序与原文件一致
-- 首次写回会顺带规范化手写不一致处（如 `[8,128]` → `[8, 128]`），后续 diff 只含语义变更
-- 可独立验证：`python3 format_tags.py [json路径]`（含 round-trip 校验）
+> `data-test-platform` 上游是 `gitlab.x2robot.com/pengcong/data-test-platform`。
+> 本地改动（慢 SQL 累计聚合视图）提交在 `feat/sql-monitor-merge` 分支，未 push 到上游。
 
-## 规则提示
+### MCP Server（挂到 Qoder / Cursor，不由此处启动）
 
-- `job_types` **不勾 = 通用**（全任务类型）
-- 勾选了 = **白名单**，仅这些类型可见
-- 任务类型：1 自由 / 2 定制 / 4 生成 / 8 恢复 / 16 纯推理 / 32 接管 / 64 评测 / 128 强化学习
+| 工具 | 传输 | 用途 |
+|---|---|---|
+| [feishu-mcp](feishu-mcp/) | stdio | 读写飞书文档、发消息 |
+| [apifoxmcp](apifoxmcp/) | stdio | Apifox 场景用例 / 接口搜索与创建 |
+| [grill-mcp](grill-mcp/) | stdio | 交互式需求拆解 / Bug 分析 / 架构理解 |
+| [qoder-mcp](qoder-mcp/) | stdio | 飞书驱动 qodercli 跑编码任务 |
+
+### 技能与插件（由外部宿主加载，此处只做备份与索引）
+
+| 目录 | 上游 | 说明 |
+|---|---|---|
+| [skills/data-workflow](skills/data-workflow/) | `~/skills/data-workflow`<br>[github](https://github.com/xuxinzhi007/data-workflow) | 开发流程技能包（需求分析 → 方案 → 编码 → 审核 → 提交）。Claude `.claude-plugin` / Qoder `.qoder-plugin` 双形态 |
+| [skills/dsh-workflow-hud](skills/dsh-workflow-hud/) | `~/skills/dsh-workflow-hud` | data-workflow 运行状态浮层：各 stage 门禁、必填项、产物、证据。DeepSeek Harness 插件 |
+
+这两个是**备份**，实际运行仍以 `~/skills/` 下的原目录为准 —— 宿主（Claude / Qoder / dsh）读的是那边的路径。
+备份里不含 `config.yaml`（本机绝对路径，上游已 gitignore）、`.git`、`specs/`。
+
+### 归档
+
+| 目录 | 说明 |
+|---|---|
+| [api-scenario-tester](api-scenario-tester/) | 手动编排多步接口场景（`tag-service-scenarios.json`）。功能已被 [data-test-platform](#本地-web-工具由-toolbox-启停) 覆盖，保留备查 |
+| [utd](utd/) | UDP 延迟 / 抖动 / 丢包探测 |
+
+## 依赖
+
+- Go 1.24+
+- Python 3.12+ / [uv](https://docs.astral.sh/uv/)（仅 MCP 工具）

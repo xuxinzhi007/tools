@@ -1,0 +1,41 @@
+# macOS
+.DS_Store
+._*
+
+# 编辑器
+.idea/
+.vscode/
+
+# Go 编译产物
+/.gocache/
+*.test
+toolbox/toolbox
+sql-monitor/sql-monitor
+system_tags_editor/system_tags_editor
+system_tags_editor/tags-editor
+quality-gate/quality-gate
+utd/utd
+data-test-platform/data-test-platform
+
+# Python
+**/.venv/
+**/__pycache__/
+**/*.pyc
+**/node_modules/
+
+# 凭证与本机配置。真实值统一放 ~/.toolbox/config.yaml
+**/config.json
+**/config.yaml
+**/*.local.json
+!**/config.example.json
+!**/*.example.json
+!**/config.example.yaml
+
+# data-workflow 运行产物
+**/specs/
+**/.cursor/skills/data-workflow/origin
+skills/data-workflow/config.yaml
+
+# 工具运行时产物
+quality-gate/workspace/
+quality-gate/tunnel.url

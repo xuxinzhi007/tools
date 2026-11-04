@@ -1,0 +1,75 @@
+{
+  "name": "review-only",
+  "kind": "review",
+  "when": "只审不改：评审别人的 MR、检查一批已有改动、上线前把关。用户说「帮我看看这个改动」「审一下」「这个 MR 有什么问题」时走这条。",
+  "principle": "不改业务代码、不 stage、不提交。发现问题就报告，改不改由用户决定。评审工件要写：审自己的分支时落到 $REPO/specs/<feature>/；审别人的工作树时落到 $CARDS/reviews/<feature>/，$CARDS 为空就问用户要一个该工作树之外的目录。",
+  "artifacts_root": "自己的分支：specs/<feature>/；别人的工作树：$CARDS/reviews/<feature>/",
+  "stages": [
+    {
+      "id": 1,
+      "name": "固定 diff 与指纹",
+      "reads": [
+        "git diff <base>..HEAD"
+      ],
+      "artifacts": [
+        "<artifacts_root>/diff.patch",
+        "review 指纹（base sha + head sha + 文件数 + 行数）"
+      ],
+      "gate": "diff 落盘成文件，三轴子 agent 都读同一份；指纹只比较被审 diff 的 base/head sha、文件数、行数。被审 diff 变了才 STALE，写入评审工件不算",
+      "note": "指纹是为了防「审的是旧 diff，报的是新结论」。落点用本文件的 artifacts_root，审别人的工作树时不写进对方仓库。",
+      "file": "stages/change-review/SKILL.md"
+    },
+    {
+      "id": 2,
+      "name": "三轴并行审核",
+      "reads": [
+        "<artifacts_root>/diff.patch",
+        "<artifacts_root>/spec.md（若有）",
+        "$PLUGIN_ROOT/stages/change-review/references/standards-spec.md"
+      ],
+      "artifacts": [
+        "<artifacts_root>/review/spec-compliance.md",
+        "review/code-quality.md",
+        "review/interface-impact.md"
+      ],
+      "gate": "三轴各自出 PASS/CONCERNS/FAIL 与证据行号；不得引用虚构 API（符号必须先 grep 存在）",
+      "subagents": {
+        "allowed": true,
+        "criteria": "三轴彼此独立、只读同一份 diff、各写各的 report → 满足 fan-out 判据",
+        "forbidden": [
+          "让子 agent 改代码",
+          "三轴之外再派『综合评估』子 agent（合并是主 agent 的活）"
+        ]
+      },
+      "file": "stages/change-review/SKILL.md"
+    },
+    {
+      "id": 3,
+      "name": "接口影响取证",
+      "reads": [
+        "$REPO"
+      ],
+      "artifacts": [
+        "<artifacts_root>/interface-test.md"
+      ],
+      "gate": "契约 ②（contract_diff.sh）必须跑；① 能跑就跑；③ 探活失败如实 WAIVED",
+      "note": "审核别人改动时，契约 diff 是最便宜也最容易被跳过的一步。",
+      "file": "stages/interface-test/SKILL.md"
+    },
+    {
+      "id": 4,
+      "name": "合并裁决",
+      "artifacts": [
+        "<artifacts_root>/review/verdict.md"
+      ],
+      "gate": "verdict.md 写：风险等级 high/medium/low + 逐条问题（文件:行号 + 为什么 + 建议）。high 或 medium 存在时明确写「不建议合入，除非…）」；不写「整体还行」这种不可判定的话",
+      "subagents": {
+        "allowed": false,
+        "reason": "裁决必须由单一主体负责，不能把责任分散给子 agent"
+      },
+      "file": "stages/change-review/SKILL.md"
+    }
+  ],
+  "bypass": [],
+  "hard_rule": "不改业务代码。用户明确要求修改业务代码时才切到 feature 或 bugfix，并重新固定 diff。指纹只比较被审 diff 的 base sha、head sha、文件数、行数；写入评审工件不使指纹 STALE。"
+}

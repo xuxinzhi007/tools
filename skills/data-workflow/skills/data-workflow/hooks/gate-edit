@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# gate-edit —— 门禁入口（POSIX / git-bash）。
+#
+# 只做一件事：找到能跑的 python，然后把 stdin 交给 gate_edit.py。
+# 为什么要有这层壳：Cursor 直接执行无扩展名文件并依赖 shebang，而 Windows 上
+# `/usr/bin/python3` 常常不存在、`python3` 又常是 Microsoft Store 的占位程序
+# （跑什么都不输出、exit 49）。hook 没有 stdout 时 failClosed 会拦死所有写入。
+# 所以这里宁可显式探测解释器；找不到就输出合法 JSON 放行，不制造「坏门」。
+set -uo pipefail
+
+case "$0" in
+  */*|*\\*) here="$(cd "${0%[/\\]*}" 2>/dev/null && pwd)" ;;
+  *) here="$(pwd)" ;;
+esac
+
+# shellcheck source=../scripts/find_python.sh
+. "$here/../scripts/find_python.sh"
+
+if py="$(dw_python)"; then
+  # 结果可能是 "py -3"，不要加引号。
+  # shellcheck disable=SC2086
+  exec $py "$here/gate_edit.py"
+fi
+
+printf '{"permission": "allow", "agent_message": "data-workflow: 没找到可用的 python（试过 py -3 / python3 / python），这次不拦写入。装上 python 后重启会话即恢复。"}\n'
+exit 0

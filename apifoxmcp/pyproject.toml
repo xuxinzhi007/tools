@@ -1,0 +1,9 @@
+[project]
+name = "apifox-mcp"
+version = "0.2.0"
+description = "Apifox 场景用例 MCP 服务"
+requires-python = ">=3.10"
+dependencies = ["mcp>=1.0,<2"]
+
+[tool.uv]
+package = false

@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>go-file MCP Dashboard</title>
+    <style>
+        :root {
+            --bg: #0f1117;
+            --panel: #171b24;
+            --panel-2: #1e2430;
+            --border: #2a3140;
+            --text: #e8ecf4;
+            --muted: #8b95a8;
+            --accent: #4f8cff;
+            --green: #3ecf8e;
+            --red: #f07178;
+            --yellow: #e6c07b;
+            --mono: "Cascadia Code", "Consolas", monospace;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+            min-height: 100vh;
+        }
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 28px;
+            border-bottom: 1px solid var(--border);
+            background: linear-gradient(180deg, #141925, var(--bg));
+        }
+        header h1 { font-size: 20px; font-weight: 600; }
+        header .meta { color: var(--muted); font-size: 13px; }
+        .live-dot {
+            display: inline-block;
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+            margin-right: 8px;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse { 0%,100%{opacity:.5} 50%{opacity:1} }
+        main { padding: 24px 28px 40px; max-width: 1400px; margin: 0 auto; }
+        .grid { display: grid; gap: 16px; }
+        .stats { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-bottom: 20px; }
+        .panels { grid-template-columns: 1fr 1fr; }
+        @media (max-width: 960px) { .panels { grid-template-columns: 1fr; } }
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 18px 20px;
+        }
+        .card h2 {
+            font-size: 14px;
+            color: var(--muted);
+            margin-bottom: 14px;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+        }
+        .stat-value { font-size: 28px; font-weight: 700; }
+        .stat-label { color: var(--muted); font-size: 12px; margin-top: 4px; }
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .badge.ok { background: rgba(62,207,142,.15); color: var(--green); }
+        .badge.warn { background: rgba(230,192,123,.15); color: var(--yellow); }
+        .badge.err { background: rgba(240,113,120,.15); color: var(--red); }
+        .url-row {
+            display: flex; gap: 8px; align-items: center;
+            background: var(--panel-2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-top: 8px;
+            font-family: var(--mono);
+            font-size: 12px;
+            word-break: break-all;
+        }
+        .btn {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .btn:hover { opacity: .9; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--border); }
+        th { color: var(--muted); font-weight: 500; }
+        .tool-name { font-family: var(--mono); color: var(--accent); }
+        .events {
+            max-height: 420px;
+            overflow-y: auto;
+            font-family: var(--mono);
+            font-size: 12px;
+        }
+        .event {
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border);
+            display: grid;
+            grid-template-columns: 150px 90px 1fr;
+            gap: 10px;
+        }
+        @media (max-width: 700px) {
+            .event { grid-template-columns: 1fr; gap: 4px; }
+        }
+        .event-time { color: var(--muted); }
+        .event-type { font-weight: 600; }
+        .event-type.tool_call { color: var(--accent); }
+        .event-type.session { color: var(--green); }
+        .event-type.request { color: var(--yellow); }
+        .kv { display: grid; grid-template-columns: 120px 1fr; gap: 8px 12px; font-size: 13px; }
+        .kv dt { color: var(--muted); }
+        .kv dd { word-break: break-all; }
+        .ws-layout {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 12px;
+            min-height: 360px;
+        }
+        @media (max-width: 800px) { .ws-layout { grid-template-columns: 1fr; } }
+        .ws-files {
+            background: var(--panel-2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow-y: auto;
+            max-height: 420px;
+            font-family: var(--mono);
+            font-size: 12px;
+        }
+        .ws-file {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+        }
+        .ws-file:hover, .ws-file.active { background: rgba(79,140,255,.12); color: var(--accent); }
+        .ws-preview {
+            background: var(--panel-2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            font-family: var(--mono);
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 420px;
+            overflow: auto;
+        }
+        .ws-meta { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+        footer {
+            text-align: center;
+            color: var(--muted);
+            font-size: 12px;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+<header>
+    <div>
+        <h1><span class="live-dot" id="live-dot"></span>go-file MCP Dashboard</h1>
+        <div class="meta" id="header-meta">Connecting...</div>
+    </div>
+    <div class="meta" id="updated-at">--</div>
+</header>
+
+<main>
+    <section class="grid stats" id="stats-cards"></section>
+
+    <section class="grid panels">
+        <div class="card">
+            <h2>服务状态</h2>
+            <dl class="kv" id="server-info"></dl>
+        </div>
+        <div class="card">
+            <h2>ngrok / 公网隧道</h2>
+            <div id="tunnel-info"></div>
+        </div>
+    </section>
+
+    <section class="card" style="margin-top:16px">
+        <h2>MCP 工具（可扩展注册）</h2>
+        <table>
+            <thead>
+            <tr>
+                <th>工具</th>
+                <th>描述</th>
+                <th>调用次数</th>
+                <th>错误</th>
+                <th>最近调用</th>
+            </tr>
+            </thead>
+            <tbody id="tools-body"></tbody>
+        </table>
+    </section>
+
+    <section class="card" style="margin-top:16px">
+        <h2>AI 工作区文件</h2>
+        <p class="ws-meta" id="ws-meta">Grok 通过 MCP 写入的文件会出现在这里</p>
+        <div class="ws-layout">
+            <div class="ws-files" id="ws-files">加载中...</div>
+            <div>
+                <div class="ws-meta" id="ws-file-path">选择文件预览</div>
+                <pre class="ws-preview" id="ws-preview">—</pre>
+            </div>
+        </div>
+    </section>
+
+    <section class="grid panels" style="margin-top:16px">
+        <div class="card">
+            <h2>端点列表</h2>
+            <table>
+                <thead><tr><th>Method</th><th>Path</th><th>Transport</th></tr></thead>
+                <tbody id="endpoints-body"></tbody>
+            </table>
+        </div>
+        <div class="card">
+            <h2>实时活动日志</h2>
+            <div class="events" id="events-log"></div>
+        </div>
+    </section>
+</main>
+
+<footer>API: GET /api/dashboard · SSE: /api/dashboard/stream · 新增工具只需在 Go 侧 toolDefinitions() 注册</footer>
+
+<script>
+    const fmtTime = (iso) => {
+        if (!iso) return '--';
+        const d = new Date(iso);
+        return d.toLocaleString('zh-CN', { hour12: false });
+    };
+
+    const fmtUptime = (sec) => {
+        const h = Math.floor(sec / 3600);
+        const m = Math.floor((sec % 3600) / 60);
+        const s = sec % 60;
+        if (h) return `${h}h ${m}m ${s}s`;
+        if (m) return `${m}m ${s}s`;
+        return `${s}s`;
+    };
+
+    const copyText = (text) => navigator.clipboard.writeText(text);
+
+    const render = (data) => {
+        const srv = data.server || {};
+        const stats = data.stats || {};
+        const sessions = data.sessions || {};
+        const tunnel = data.tunnel || {};
+
+        document.getElementById('header-meta').textContent =
+            `${srv.name} v${srv.version} · protocol ${srv.protocol}`;
+        document.getElementById('updated-at').textContent =
+            'Updated ' + fmtTime(data.updated_at);
+
+        document.getElementById('stats-cards').innerHTML = [
+            { label: '服务状态', value: srv.status === 'online' ? 'Online' : 'Offline', cls: 'ok' },
+            { label: '运行时长', value: fmtUptime(srv.uptime_seconds || 0) },
+            { label: '总请求', value: stats.total_requests || 0 },
+            { label: '工具调用', value: stats.tool_calls || 0 },
+            { label: '活跃会话', value: (sessions.active_mcp || 0) + (sessions.active_sse || 0) },
+            { label: '错误', value: stats.errors || 0, cls: stats.errors > 0 ? 'err' : 'ok' },
+        ].map(c => `
+            <div class="card">
+                <div class="stat-value">${c.value}</div>
+                <div class="stat-label">${c.label}</div>
+                ${c.cls ? `<span class="badge ${c.cls}" style="margin-top:8px">${c.label}</span>` : ''}
+            </div>
+        `).join('');
+
+        document.getElementById('server-info').innerHTML = `
+            <dt>工作区</dt><dd>${srv.root || '--'}</dd>
+            <dt>端口</dt><dd>${srv.port || '--'}</dd>
+            <dt>配置文件</dt><dd>${srv.config_path || 'config.json'} · ngrok.auto_start=${srv.ngrok_auto_start ? 'true' : 'false'}</dd>
+            <dt>鉴权</dt><dd>${srv.auth_enabled ? '已启用 Bearer Token' : '未启用'}</dd>
+            <dt>启动时间</dt><dd>${fmtTime(srv.started_at)}</dd>
+            <dt>MCP 会话</dt><dd>${sessions.active_mcp || 0} active / ${sessions.total_created || 0} total</dd>
+            <dt>SSE 连接</dt><dd>${sessions.active_sse || 0} legacy · ${sessions.live_streams || 0} streams</dd>
+        `;
+
+        const tunnelHTML = tunnel.connected ? `
+            <span class="badge ok">已连接</span>
+            <p style="color:var(--muted);font-size:12px;margin-top:8px">API: ${tunnel.api_url || '--'}</p>
+            <div class="url-row">
+                <span style="flex:1">${tunnel.mcp_url}</span>
+                <button class="btn" onclick="copyText('${tunnel.mcp_url}')">复制 MCP</button>
+            </div>
+            <div class="url-row">
+                <span style="flex:1">${tunnel.sse_url}</span>
+                <button class="btn" onclick="copyText('${tunnel.sse_url}')">复制 SSE</button>
+            </div>
+            <p style="color:var(--muted);font-size:12px;margin-top:10px">${tunnel.grok_hint || ''}</p>
+        ` : `
+            <span class="badge warn">未检测到 ngrok</span>
+            <p style="color:var(--muted);font-size:13px;margin-top:10px;line-height:1.7">
+                自动扫描端口 <code>4040-4050</code><br>
+                在 <code>config.json</code> 设置 <code>"ngrok.auto_start": true</code> 可随服务启动 ngrok<br>
+                手动指定 API：<code>"ngrok.api_url": "http://127.0.0.1:4041/api/tunnels"</code><br>
+                本地看板：<code>http://localhost:${srv.port || 8080}</code>
+            </p>
+        `;
+        document.getElementById('tunnel-info').innerHTML = tunnelHTML;
+
+        document.getElementById('tools-body').innerHTML = (data.tools || []).map(t => `
+            <tr>
+                <td class="tool-name">${t.name}</td>
+                <td>${t.description}</td>
+                <td>${t.call_count || 0}</td>
+                <td>${t.error_count > 0 ? `<span class="badge err">${t.error_count}</span>` : '0'}</td>
+                <td>${fmtTime(t.last_called_at)}</td>
+            </tr>
+        `).join('') || '<tr><td colspan="5">暂无工具</td></tr>';
+
+        document.getElementById('endpoints-body').innerHTML = (data.endpoints || []).map(e => `
+            <tr>
+                <td><span class="badge ok">${e.method}</span></td>
+                <td class="tool-name">${e.path}</td>
+                <td>${e.transport}</td>
+            </tr>
+        `).join('');
+
+        document.getElementById('events-log').innerHTML = (data.recent_events || []).map(e => `
+            <div class="event">
+                <div class="event-time">${fmtTime(e.time)}</div>
+                <div class="event-type ${e.type}">${e.type}${e.tool ? ' · ' + e.tool : ''}</div>
+                <div>
+                    <span class="badge ${e.success ? 'ok' : 'err'}">${e.success ? 'OK' : 'ERR'}</span>
+                    ${e.method ? e.method + ' · ' : ''}${e.transport} · ${e.client_ip} · ${e.duration_ms}ms
+                    ${e.detail ? '<br><span style="color:var(--muted)">' + e.detail + '</span>' : ''}
+                </div>
+            </div>
+        `).join('') || '<div style="color:var(--muted);padding:20px 0">等待 AI 调用...</div>';
+    };
+
+    const connectSSE = () => {
+        const es = new EventSource('/api/dashboard/stream');
+        es.addEventListener('snapshot', (ev) => {
+            try {
+                render(JSON.parse(ev.data));
+                document.getElementById('live-dot').style.background = 'var(--green)';
+            } catch (e) {
+                console.error(e);
+            }
+        });
+        es.onerror = () => {
+            document.getElementById('live-dot').style.background = 'var(--red)';
+            es.close();
+            setTimeout(connectSSE, 3000);
+        };
+    };
+
+    fetch('/api/dashboard')
+        .then(r => r.json())
+        .then(render)
+        .catch(() => {
+            document.getElementById('header-meta').textContent = 'Failed to load dashboard';
+        });
+
+    connectSSE();
+
+    const loadWorkspace = async () => {
+        try {
+            const res = await fetch('/api/workspace/tree');
+            const data = await res.json();
+            const el = document.getElementById('ws-files');
+            document.getElementById('ws-meta').textContent =
+                `共 ${data.count || 0} 个文件 · 点击预览内容`;
+            if (!data.files || !data.files.length) {
+                el.innerHTML = '<div class="ws-file">（工作区暂无文件）</div>';
+                return;
+            }
+            el.innerHTML = data.files.map(f => `
+                <div class="ws-file" data-path="${f.path}">📄 ${f.path} <span style="color:var(--muted)">(${f.size}B)</span></div>
+            `).join('');
+            el.querySelectorAll('.ws-file[data-path]').forEach(item => {
+                item.onclick = async () => {
+                    el.querySelectorAll('.ws-file').forEach(n => n.classList.remove('active'));
+                    item.classList.add('active');
+                    const path = item.dataset.path;
+                    document.getElementById('ws-file-path').textContent = path;
+                    const r = await fetch('/api/workspace/file?path=' + encodeURIComponent(path));
+                    const d = await r.json();
+                    document.getElementById('ws-preview').textContent =
+                        d.content ?? d.error ?? '无法预览';
+                };
+            });
+        } catch (e) {
+            document.getElementById('ws-files').textContent = '加载失败';
+        }
+    };
+
+    loadWorkspace();
+    setInterval(loadWorkspace, 5000);
+</script>
+</body>
+</html>

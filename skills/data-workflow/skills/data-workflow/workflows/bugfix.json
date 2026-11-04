@@ -1,0 +1,112 @@
+{
+  "name": "bugfix",
+  "kind": "execute",
+  "when": "data-service（Go 栈）实例已知错误行为需要修正：功能不符合口径、状态卡住、数据不一致、接口返回错。用户说「这里不对」「修一下」「为什么结果是 X」时走这条。",
+  "principle": "先证根因再动手。根因没证据就写代码 = 换个地方再犯一次。不写技术方案，但影响面与回滚不能省。",
+  "artifacts_root": "specs/<feature>/",
+  "stages": [
+    {
+      "id": 1,
+      "name": "根因定位（只读）",
+      "reads": [
+        "$CARDS/（先 grep 症状词）",
+        "$KNOW/<相关域>/（一次一个）",
+        "$REPO 当前 checkout"
+      ],
+      "artifacts": [
+        "specs/<feature>/spec.md（精简版：症状 / 真实链路 / 根因 / 证据）"
+      ],
+      "gate": "根因有代码证据（文件:符号）或运行时证据；区分 code-confirmed / hypothesis；偶发故障或性能回退另读全局技能 diagnosing-bugs",
+      "on_gate_fail": "停在假设，不许开始改代码",
+      "subagents": {
+        "allowed": true,
+        "criteria": "多条互不依赖的链路可并行取证（例：写入方一条、读取方一条、外部通道一条）",
+        "forbidden": [
+          "探索性 debug 派子 agent——它需要全局状态与连续假设，拆开就断线"
+        ]
+      },
+      "file": "stages/oncall/SKILL.md"
+    },
+    {
+      "id": 2,
+      "name": "修复影响面",
+      "reads": [
+        "specs/<feature>/spec.md",
+        "$REPO"
+      ],
+      "artifacts": [
+        "specs/<feature>/impact.md"
+      ],
+      "template": "templates/impact-template.md",
+      "gate": "轴 1（谁共用这段逻辑）+ 轴 2（状态修复是否影响其它消费面）+ 轴 4（已产生的脏数据怎么办）三项非空",
+      "on_gate_fail": "回阶段 1：说明根因还没找全",
+      "note": "bugfix 最常漏的是轴 4：代码修好了，历史脏数据还在。",
+      "file": "stages/impact-assessment/SKILL.md"
+    },
+    {
+      "id": 3,
+      "name": "回归测试先行",
+      "code": true,
+      "reads": [
+        "specs/<feature>/spec.md"
+      ],
+      "artifacts": [
+        "一条能复现该 bug 的失败测试（先红）",
+        "修复代码（后绿）"
+      ],
+      "gate": "没有复现测试就修 = 无法证明修好了；确实无法写测试时说明原因并在 change-note 记账",
+      "on_gate_fail": "停下补测试",
+      "subagents": {
+        "allowed": false,
+        "reason": "实现类子 agent 禁止并行"
+      },
+      "file": "stages/implementation/SKILL.md"
+    },
+    {
+      "id": 4,
+      "name": "改动审核（三轴）",
+      "reads": [
+        "specs/<feature>/diff.patch"
+      ],
+      "artifacts": [
+        "specs/<feature>/review/*.md"
+      ],
+      "gate": "三轴各出 PASS/CONCERNS/FAIL；high 或 medium 即停",
+      "on_gate_fail": "回阶段 3",
+      "subagents": {
+        "allowed": true,
+        "criteria": "三轴并行，同一份 diff，各写自己的 report"
+      },
+      "file": "stages/change-review/SKILL.md"
+    },
+    {
+      "id": 5,
+      "name": "质量与接口门",
+      "artifacts": [
+        "specs/<feature>/quality.md",
+        "specs/<feature>/interface-test.md"
+      ],
+      "gate": "构建 + 单测 + 接口三级门；bugfix 特别看契约 ② 是否顺手改了 proto",
+      "calls": [
+        "stages/interface-test/SKILL.md"
+      ],
+      "file": "stages/quality-gate/SKILL.md"
+    },
+    {
+      "id": 6,
+      "name": "知识回写与提交",
+      "artifacts": [
+        "$CARDS/YYYY-MM-DD-<症状>.md（带 verified_commit 与 watches）",
+        "specs/<feature>/change-note.md",
+        "commit"
+      ],
+      "gate": "文档审计门 + 卡片索引已更新 + knowledge_drift.sh 对新卡报 FRESH",
+      "on_gate_fail": "补文档或显式记账",
+      "note": "排查结论回写知识层走 stages/oncall/SKILL.md 的 references/capture.md，只写个人知识层，不污染仓库 docs/。",
+      "file": "stages/git-commit/SKILL.md"
+    }
+  ],
+  "bypass": [
+    "stages/excalidraw-diagram/SKILL.md（链路复杂时画一张，按需）"
+  ]
+}

@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>质检标签工具（纯本地）</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --panel: #f5f7fa;
+      --border: #d9dee7;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --accent: #2563eb;
+      --danger: #dc2626;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    body { display: flex; align-items: flex-start; }
+    .sidenav {
+      width: 196px; flex: none; position: sticky; top: 0; height: 100vh; overflow: auto;
+      background: #fff; border-right: 1px solid var(--border); padding: 16px 12px;
+    }
+    .sidenav-title { margin: 0 0 8px 6px; font-size: 12px; color: var(--muted); font-weight: 600; }
+    .sidenav a {
+      display: block; padding: 8px 10px; border-radius: 8px; margin-bottom: 2px;
+      text-decoration: none; color: inherit; font-size: 14px;
+    }
+    .sidenav a:hover { background: #f3f4f6; }
+    .sidenav a.on { background: #eff6ff; color: var(--accent); font-weight: 600; }
+    .page { flex: 1; min-width: 0; }
+    @media (max-width: 800px) {
+      body { display: block; }
+      .sidenav { width: auto; height: auto; position: static; display: flex; flex-wrap: wrap; gap: 4px; }
+      .sidenav-title { width: 100%; }
+    }
+    header {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel);
+    }
+    header h1 { margin: 0 0 0.25rem; font-size: 1.2rem; }
+    header p { margin: 0; color: var(--muted); font-size: 0.8rem; }
+    main { max-width: 1280px; margin: 0 auto; padding: 1rem 1.5rem 2rem; }
+
+    /* 顶部通用区 */
+    .toolbar {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      align-items: flex-end;
+    }
+    .toolbar .field-grow { flex: 1; min-width: 200px; }
+    .toolbar .field-sm { width: 140px; }
+    label { font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 0.3rem; }
+    input[type="text"], select {
+      width: 100%;
+      padding: 0.45rem 0.6rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.875rem;
+    }
+    .toolbar-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    button {
+      padding: 0.45rem 0.85rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 0.8rem;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    button:hover { border-color: var(--accent); }
+    button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    button.danger { border-color: var(--danger); color: var(--danger); }
+    button.danger:hover { background: #fef2f2; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      min-height: 480px;
+    }
+    .card h2 { margin: 0 0 0.5rem; font-size: 0.9rem; color: var(--muted); font-weight: 500; }
+    textarea {
+      flex: 1;
+      width: 100%;
+      min-height: 360px;
+      padding: 0.65rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: ui-monospace, Menlo, monospace;
+      font-size: 0.72rem;
+      resize: vertical;
+    }
+    .card-foot {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+      align-items: center;
+    }
+    .tabs { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+    .tab {
+      padding: 0.3rem 0.65rem;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 0.75rem;
+    }
+    .tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .panel { display: none; flex: 1; flex-direction: column; }
+    .panel.active { display: flex; }
+    .panel textarea { flex: 1; min-height: 320px; }
+    .warnings {
+      font-size: 0.75rem;
+      padding: 0.4rem 0.6rem;
+      border-radius: 6px;
+      background: #fffbeb;
+      border: 1px solid #fcd34d;
+      color: #92400e;
+      margin-bottom: 0.5rem;
+      display: none;
+    }
+    .warnings.show { display: block; }
+    .hint { font-size: 0.72rem; color: var(--muted); margin-top: 0.35rem; }
+    footer { font-size: 0.72rem; color: var(--muted); margin-top: 1rem; }
+    footer code { color: #2563eb; }
+  </style>
+</head>
+<body>
+  <nav class="sidenav">
+    <div class="sidenav-title">工具</div>
+    <a href="/">标签编辑</a>
+    <a href="/tools/pretrain-resync">预训练重刷</a>
+    <a href="/tools/label-repair">脏数据修复</a>
+    <a class="on" href="/tools/qc-init">质检初始化</a>
+  </nav>
+  <div class="page">
+  <header>
+    <h1>质检标签工具（纯本地）</h1>
+    <p>不发请求。顶部填租户 ID，按需：List 转 root / 拼 init 请求体 / 生成删除 SQL。</p>
+  </header>
+
+  <main>
+    <!-- 通用：租户 + 快捷操作 -->
+    <div class="toolbar">
+      <div class="field-grow">
+        <label for="tenantIds">tenant_id（逗号分隔，全局共用）</label>
+        <input type="text" id="tenantIds" value="99990000,99888" placeholder="99990000,99888" />
+      </div>
+      <div class="field-sm">
+        <label for="dryRun">init 预检</label>
+        <select id="dryRun">
+          <option value="true" selected>dry_run: true</option>
+          <option value="false">dry_run: false</option>
+        </select>
+      </div>
+      <div class="field-sm">
+        <label for="sqlStyle">SQL 样式</label>
+        <select id="sqlStyle">
+          <option value="compact" selected>简洁（推荐）</option>
+          <option value="minimal">极简（仅 DELETE）</option>
+        </select>
+      </div>
+      <div class="toolbar-actions">
+        <button type="button" class="primary" id="btnFromList">List → root</button>
+        <button type="button" id="btnFromTemplate">标准模板 → root</button>
+        <button type="button" id="btnBuildPayload">拼 init 请求体</button>
+        <button type="button" class="danger" id="btnGenSql">生成删除 SQL</button>
+      </div>
+    </div>
+
+    <div class="grid">
+      <!-- 左：可选输入 -->
+      <div class="card">
+        <h2>输入（可选）</h2>
+        <p class="hint" style="margin:0 0 0.5rem">粘贴 list 返回 JSON；不转换也可直接用「标准模板」或只生成 SQL。</p>
+        <div class="card-foot" style="margin-top:0;margin-bottom:0.5rem">
+          <button type="button" id="btnSample">List 示例</button>
+          <button type="button" id="btnFillInput">填入标准模板</button>
+          <button type="button" id="btnClear">清空</button>
+        </div>
+        <textarea id="input" placeholder="data.tags[0] 或整段 list 响应…"></textarea>
+      </div>
+
+      <!-- 右：统一输出 -->
+      <div class="card">
+        <div class="card-foot" style="margin-top:0;margin-bottom:0.5rem">
+          <div class="tabs">
+            <button type="button" class="tab active" data-tab="root">Init root</button>
+            <button type="button" class="tab" data-tab="payload">Init 请求体</button>
+            <button type="button" class="tab" data-tab="sql">删除 SQL</button>
+          </div>
+        </div>
+        <div id="warnings" class="warnings"></div>
+        <div id="panelRoot" class="panel active">
+          <textarea id="outputRoot" readonly placeholder="root JSON…"></textarea>
+        </div>
+        <div id="panelPayload" class="panel">
+          <textarea id="outputPayload" readonly placeholder="tenant_ids + dry_run + root…"></textarea>
+        </div>
+        <div id="panelSql" class="panel">
+          <textarea id="outputSql" readonly placeholder="DELETE tb_tag…"></textarea>
+        </div>
+        <div class="card-foot">
+          <button type="button" id="btnCopy">复制当前</button>
+          <button type="button" id="btnDownload">下载当前</button>
+          <span id="stats" class="hint" style="margin:0"></span>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      标准模板 <code>configs/tag_qc_system_template.json</code>（24 tag_code）· 文档 <code>docs/API/TAG_QC_SYSTEM_INIT.md</code>
+    </footer>
+  </main>
+  </div>
+
+  <script>
+    const NAME_TO_META = {
+      "质检标签": { tag_code: "qc_taxonomy" },
+      "合格": { tag_code: "qualified", qc_result: 10 },
+      "瑕疵": { tag_code: "minor_defect", qc_result: 20 },
+      "错误": { tag_code: "error", qc_result: 30 },
+      "设备异常": { tag_code: "device_error", qc_result: 40 },
+      "轻微动作调整": { tag_code: "minor_action_adjustment" },
+      "短时静止": { tag_code: "short_stagnation" },
+      "单次操作失败": { tag_code: "minor_operation_failure" },
+      "轻微速度异常": { tag_code: "minor_abnormal_speed" },
+      "异常动作调整": { tag_code: "abnormal_action_adjustment" },
+      "长时静止": { tag_code: "long_stagnation" },
+      "无意义不规范动作": { tag_code: "meaningless_action" },
+      "多次操作失败": { tag_code: "multiple_operation_failure" },
+      "初始终止错误": { tag_code: "start_end_error" },
+      "速度异常": { tag_code: "abnormal_speed" },
+      "拍摄视角问题": { tag_code: "view_problem" },
+      "穿戴规范": { tag_code: "wearing_noncompliance" },
+      "时长不合规": { tag_code: "duration_noncompliance" },
+      "时长不规范": { tag_code: "duration_noncompliance" },
+      "视频掉帧": { tag_code: "frame_drop" },
+      "视频丢失": { tag_code: "video_loss" },
+      "曝光异常": { tag_code: "exposure_abnormality" },
+      "传感器数值异常": { tag_code: "sensor_value_abnormality" },
+      "图像模糊": { tag_code: "image_blur" },
+      "时间不同步": { tag_code: "clock_desync" }
+    };
+
+    const STANDARD_ROOT = {"tag_code":"qc_taxonomy","tag_name":"质检标签","description":"质检标签分类根节点","color":"#1890ff","status":2,"sub_tags":[{"tag_code":"qualified","tag_name":"合格","qc_result":10,"color":"#52c41a","status":2,"sub_tags":[]},{"tag_code":"minor_defect","tag_name":"瑕疵","qc_result":20,"color":"#faad14","status":2,"sub_tags":[{"tag_code":"minor_action_adjustment","tag_name":"轻微动作调整","status":2},{"tag_code":"short_stagnation","tag_name":"短时静止","status":2},{"tag_code":"minor_operation_failure","tag_name":"单次操作失败","status":2},{"tag_code":"minor_abnormal_speed","tag_name":"轻微速度异常","status":2}]},{"tag_code":"error","tag_name":"错误","qc_result":30,"color":"#f5222d","status":2,"sub_tags":[{"tag_code":"abnormal_action_adjustment","tag_name":"异常动作调整","status":2},{"tag_code":"long_stagnation","tag_name":"长时静止","status":2},{"tag_code":"meaningless_action","tag_name":"无意义不规范动作","status":2},{"tag_code":"multiple_operation_failure","tag_name":"多次操作失败","status":2},{"tag_code":"start_end_error","tag_name":"初始终止错误","status":2},{"tag_code":"abnormal_speed","tag_name":"速度异常","status":2},{"tag_code":"view_problem","tag_name":"拍摄视角问题","status":2},{"tag_code":"wearing_noncompliance","tag_name":"穿戴规范","status":2},{"tag_code":"duration_noncompliance","tag_name":"时长不合规","status":2}]},{"tag_code":"device_error","tag_name":"设备异常","qc_result":40,"color":"#722ed1","status":2,"sub_tags":[{"tag_code":"frame_drop","tag_name":"视频掉帧","status":2},{"tag_code":"video_loss","tag_name":"视频丢失","status":2},{"tag_code":"exposure_abnormality","tag_name":"曝光异常","status":2},{"tag_code":"sensor_value_abnormality","tag_name":"传感器数值异常","status":2},{"tag_code":"image_blur","tag_name":"图像模糊","status":2},{"tag_code":"clock_desync","tag_name":"时间不同步","status":2}]}]};
+
+    const TAG_CODE_RE = /^[a-z][a-z0-9_]{0,63}$/;
+    let lastRoot = null;
+    let activeTab = "root";
+
+    function getTenantIds() {
+      return parseTenantIds(document.getElementById("tenantIds").value);
+    }
+
+    function parseTenantIds(str) {
+      if (!str.trim()) throw new Error("请填写 tenant_id");
+      return str.split(/[,，\s]+/).map((s) => s.trim()).filter(Boolean).map((s) => {
+        const n = Number(s);
+        if (!Number.isInteger(n) || n < 0) throw new Error("无效 tenant_id: " + s + "（0 表示 Global 系统标签）");
+        return n;
+      });
+    }
+
+    function parseInput(raw) {
+      const text = raw.trim();
+      if (!text) throw new Error("请粘贴 list JSON");
+      const data = JSON.parse(text);
+      if (data.root && (data.root.tag_code || data.root.tag_name)) return data.root;
+      if (data.tag_code || data.tag_name) return data;
+      if (data.data && Array.isArray(data.data.tags) && data.data.tags.length) return data.data.tags[0];
+      if (Array.isArray(data.tags) && data.tags.length) return data.tags[0];
+      throw new Error("无法识别 JSON 结构");
+    }
+
+    function resolveTagCode(tag, warnings) {
+      const fromApi = (tag.tag_code || tag.tagCode || "").trim();
+      if (fromApi && TAG_CODE_RE.test(fromApi)) return fromApi;
+      const name = (tag.tag_name || tag.tagName || "").trim();
+      const meta = NAME_TO_META[name];
+      if (meta && meta.tag_code) return meta.tag_code;
+      warnings.push("未映射 tag_code：" + (name || "(无名)"));
+      return "";
+    }
+
+    function resolveQcResult(tag, depth, tagCode) {
+      const qr = tag.qc_result ?? tag.qcResult;
+      if (qr != null && qr !== 0) return Number(qr);
+      if (depth === 2) {
+        const name = (tag.tag_name || tag.tagName || "").trim();
+        const meta = NAME_TO_META[name];
+        if (meta && meta.qc_result) return meta.qc_result;
+        const byCode = { qualified: 10, minor_defect: 20, error: 30, device_error: 40 };
+        if (byCode[tagCode]) return byCode[tagCode];
+      }
+      return undefined;
+    }
+
+    function convertNode(tag, depth, warnings) {
+      const tagCode = resolveTagCode(tag, warnings);
+      const name = (tag.tag_name || tag.tagName || "").trim();
+      const node = { tag_code: tagCode, tag_name: name };
+      const desc = (tag.description || "").trim();
+      if (desc) node.description = desc;
+      const color = (tag.color || "").trim();
+      if (color) node.color = color;
+      let status = tag.status;
+      if (status === 0 || status == null) status = 2;
+      node.status = Number(status);
+      const qc = resolveQcResult(tag, depth, tagCode);
+      if (depth === 2 && qc) node.qc_result = qc;
+      const children = tag.sub_tags || tag.subTags || [];
+      node.sub_tags = children.map((c) => convertNode(c, depth + 1, warnings));
+      return node;
+    }
+
+    function collectMeta(root) {
+      const codes = [];
+      function walk(n) {
+        if (!n) return;
+        if (n.tag_code) codes.push(n.tag_code);
+        (n.sub_tags || []).forEach(walk);
+      }
+      walk(root);
+      return { codes: [...new Set(codes)] };
+    }
+
+    function countNodes(node) {
+      if (!node) return 0;
+      let n = 1;
+      (node.sub_tags || []).forEach((c) => { n += countNodes(c); });
+      return n;
+    }
+
+    function getRootForWork() {
+      return lastRoot || STANDARD_ROOT;
+    }
+
+    function setRoot(root, warnings) {
+      lastRoot = root;
+      document.getElementById("outputRoot").value = JSON.stringify(root, null, 2);
+      buildPayload();
+      updateStats(warnings);
+    }
+
+    function showWarnings(warnings) {
+      const el = document.getElementById("warnings");
+      if (warnings && warnings.length) {
+        el.innerHTML = "<strong>注意</strong> " + warnings.map((w) => escapeHtml(w)).join("；");
+        el.classList.add("show");
+      } else {
+        el.classList.remove("show");
+        el.innerHTML = "";
+      }
+    }
+
+    function escapeHtml(s) {
+      return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function updateStats(warnings) {
+      const root = getRootForWork();
+      const meta = collectMeta(root);
+      const src = lastRoot ? "当前 root" : "标准模板";
+      let t = "节点 " + countNodes(root) + " · tag_code " + meta.codes.length + " · " + src;
+      if (warnings && warnings.length) t += " · 有警告";
+      document.getElementById("stats").textContent = t;
+    }
+
+    function convertFromList() {
+      const warnings = [];
+      const root = convertNode(parseInput(document.getElementById("input").value), 1, warnings);
+      setRoot(root, warnings);
+      showWarnings(warnings);
+      switchTab("root");
+    }
+
+    function convertFromTemplate() {
+      lastRoot = JSON.parse(JSON.stringify(STANDARD_ROOT));
+      setRoot(lastRoot, []);
+      showWarnings([]);
+      switchTab("root");
+    }
+
+    function buildPayload() {
+      const root = getRootForWork();
+      const dryRun = document.getElementById("dryRun").value === "true";
+      document.getElementById("outputPayload").value = JSON.stringify({
+        tenant_ids: getTenantIds(),
+        dry_run: dryRun,
+        confirm_token: dryRun ? "" : "",
+        root
+      }, null, 2);
+    }
+
+    function sqlQuote(s) {
+      return "'" + String(s).replace(/'/g, "''") + "'";
+    }
+
+    function buildTagWhereClause(tenantIn, codes) {
+      const codeIn = codes.map(sqlQuote).join(", ");
+      return "tenant_id IN (" + tenantIn + ") AND tag_code IN (" + codeIn + ")";
+    }
+
+    function generateSql() {
+      const tenantIds = getTenantIds();
+      const rootForSql = getRootForWork();
+      const { codes } = collectMeta(rootForSql);
+      const tenantIn = tenantIds.join(", ");
+      const where = buildTagWhereClause(tenantIn, codes);
+      const style = document.getElementById("sqlStyle").value;
+
+      let sql;
+      if (style === "minimal") {
+        sql = [
+          "-- 删除测试租户质检标签（" + codes.length + " 个 tag_code）",
+          "DELETE FROM tb_tag WHERE " + where + ";"
+        ].join("\n");
+      } else {
+        sql = [
+          "-- 清理测试租户质检标签（tb_tag 行，共 " + codes.length + " 个 tag_code）",
+          "-- 租户: " + tenantIn,
+          "",
+          "-- ① 先预览",
+          "SELECT tag_id, tag_name, tag_code FROM tb_tag WHERE " + where + ";",
+          "",
+          "-- ② 再删除（WHERE 与上一句相同）",
+          "START TRANSACTION;",
+          "DELETE FROM tb_tag WHERE " + where + ";",
+          "COMMIT;"
+        ].join("\n");
+      }
+      document.getElementById("outputSql").value = sql;
+      switchTab("sql");
+      updateStats([]);
+    }
+
+    function switchTab(name) {
+      activeTab = name;
+      document.querySelectorAll(".tab").forEach((b) => {
+        b.classList.toggle("active", b.dataset.tab === name);
+      });
+      document.getElementById("panelRoot").classList.toggle("active", name === "root");
+      document.getElementById("panelPayload").classList.toggle("active", name === "payload");
+      document.getElementById("panelSql").classList.toggle("active", name === "sql");
+    }
+
+    function getActiveOutputId() {
+      if (activeTab === "payload") return "outputPayload";
+      if (activeTab === "sql") return "outputSql";
+      return "outputRoot";
+    }
+
+    function getActiveFilename() {
+      if (activeTab === "payload") return "tag_qc_init_payload.json";
+      if (activeTab === "sql") return "tag_qc_cleanup.sql";
+      return "tag_qc_root.json";
+    }
+
+    document.querySelectorAll(".tab").forEach((btn) => {
+      btn.addEventListener("click", () => switchTab(btn.dataset.tab));
+    });
+
+    document.getElementById("btnFromList").addEventListener("click", () => {
+      try { convertFromList(); } catch (e) { alert(e.message); }
+    });
+    document.getElementById("btnFromTemplate").addEventListener("click", () => {
+      try { convertFromTemplate(); } catch (e) { alert(e.message); }
+    });
+    document.getElementById("btnBuildPayload").addEventListener("click", () => {
+      try {
+        if (!document.getElementById("outputRoot").value.trim()) convertFromTemplate();
+        else buildPayload();
+        switchTab("payload");
+      } catch (e) { alert(e.message); }
+    });
+    document.getElementById("btnGenSql").addEventListener("click", () => {
+      try { generateSql(); } catch (e) { alert(e.message); }
+    });
+    document.getElementById("tenantIds").addEventListener("change", () => {
+      if (document.getElementById("outputPayload").value) buildPayload();
+    });
+    document.getElementById("dryRun").addEventListener("change", () => {
+      if (document.getElementById("outputPayload").value) buildPayload();
+    });
+    document.getElementById("btnCopy").addEventListener("click", () => {
+      const t = document.getElementById(getActiveOutputId()).value;
+      if (!t) { alert("当前页为空"); return; }
+      navigator.clipboard.writeText(t).then(() => alert("已复制"));
+    });
+    document.getElementById("btnDownload").addEventListener("click", () => {
+      const id = getActiveOutputId();
+      const t = document.getElementById(id).value;
+      if (!t) { alert("当前页为空"); return; }
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([t], { type: "text/plain;charset=utf-8" }));
+      a.download = getActiveFilename();
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+    document.getElementById("btnFillInput").addEventListener("click", () => {
+      document.getElementById("input").value = JSON.stringify(STANDARD_ROOT, null, 2);
+    });
+    document.getElementById("btnSample").addEventListener("click", () => {
+      document.getElementById("input").value = JSON.stringify({
+        code: 0,
+        data: { tags: [STANDARD_ROOT], total: 1, page: 1, page_size: 100 }
+      }, null, 2);
+    });
+    document.getElementById("btnClear").addEventListener("click", () => {
+      document.getElementById("input").value = "";
+      document.getElementById("outputRoot").value = "";
+      document.getElementById("outputPayload").value = "";
+      document.getElementById("outputSql").value = "";
+      lastRoot = null;
+      showWarnings([]);
+      document.getElementById("stats").textContent = "";
+    });
+
+    // 初始化：标准模板写入 root，方便直接拼请求体 / SQL
+    convertFromTemplate();
+  </script>
+</body>
+</html>

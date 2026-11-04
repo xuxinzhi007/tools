@@ -1,0 +1,38 @@
+{
+  "name": "@local/dsh-workflow-hud",
+  "version": "0.6.0",
+  "private": true,
+  "description": "Floating workflow-state cockpit for data-workflow with a full-viewport cyber web-crawler layer: every stage's gate, required fields, artifacts, evidence, verify result, a runner gate log, and the installed workflow templates.",
+  "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "lib/*.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.mjs && node --check index.js && node --check client.js && node --check lib/workflow.js"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-layout"
+      ]
+    }
+  }
+}

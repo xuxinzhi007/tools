@@ -1,0 +1,120 @@
+{
+  "$comment": "机器可判的回归用例。每条对应 check_runner.py 里已经实现的 case，由 scripts/verify.sh 执行。人工评审用例（需要读 agent 的自然语言回答）在 docs/review-cases.md，不在本文件，也不会被自动执行。",
+  "policy": {
+    "runnable": true,
+    "executed_by": "bash scripts/verify.sh",
+    "note": "本文件的 pass 条件必须能被脚本判定。判不了的不要放进来——放进来就会变成没人执行的文档。"
+  },
+  "evals": [
+    {
+      "id": 5,
+      "skill": "stages/oncall/SKILL.md",
+      "targets": [
+        "记忆回写端到端"
+      ],
+      "prompt": "第 3 题的提示 + 「沉淀成卡片」",
+      "pass": [
+        "卡片出现在 $CARDS/（paths.sh 解析出的卡片目录）",
+        "verified_commit 等于当前 HEAD",
+        "source_paths 非空、有 invalidates_when、有 symptoms",
+        "卡片目录 README.md 索引已更新",
+        "之后 grep -rl '<症状词>' \"$CARDS/\" 能命中",
+        "scripts/knowledge_drift.sh 对该卡报 FRESH"
+      ],
+      "fail": [
+        "写入仓库 docs/support/cards/",
+        "卡片含 token 或未脱敏数据"
+      ],
+      "machine_case": "check_runner.py: case_card_writeback"
+    },
+    {
+      "id": 6,
+      "skill": "data-workflow",
+      "targets": [
+        "痛点② token"
+      ],
+      "prompt": "35 是什么状态？",
+      "pass": [
+        "SKILL.md 与本次实际加载的 references 合计 ≤ 200 行",
+        "没有任何 references/* 被无条件加载"
+      ],
+      "fail": [
+        "把 15 个状态族全拉进上下文",
+        "无条件加载 domain-map 与 state-machines"
+      ],
+      "machine_case": "check_runner.py: case_lazy_load"
+    },
+    {
+      "id": 12,
+      "skill": "scripts/install.sh + scripts/resolve.sh",
+      "targets": [
+        "痛点① 分发绑定单一 IDE 与个人绝对路径"
+      ],
+      "prompt": "在 Cursor / Claude Code / Codex / Qoder 里都要能用这套技能，怎么装？知识源不是 Obsidian 的人怎么办？",
+      "pass": [
+        "bash scripts/install.sh 探测 cwd（或 --global 时 ~）下的 .claude .cursor .qoder .codex .agents，只对存在的目录复制一份自包含的 skills/data-workflow，不软链回技能仓库",
+        "连跑两次结果一致（幂等，不重复报错），已有 config.yaml 不被覆盖",
+        "bash scripts/install.sh --unlink 卸掉这份副本，留下 config.yaml，不动其他技能",
+        "装进含 .cursor 的项目时，把 sessionStart / preToolUse / beforeShellExecution 合并进该项目 .cursor/hooks.json，命令指向副本里的 hooks/；--global 不写 hook；--unlink 摘掉这些命令",
+        "bash scripts/resolve.sh <key> 按 DATA_WORKFLOW_<KEY> env > <项目>/<工具>/skills/data-workflow/config.yaml > <项目根>/config.yaml > ~/.config/data-workflow/config.yaml > 空 的顺序解析，不读技能仓库的 config.yaml",
+        "config.yaml 未配置或键为空时，知识源回退 $REPO/docs 并打印 DEGRADED，绝不猜绝对路径",
+        "对 skills/ scripts/ templates/ workflows/ README.md AGENTS.md 跑「个人主目录绝对路径」grep 无命中（个人路径只允许出现在被 gitignore 的 config.yaml；evals 自身不在此列，避免自指）"
+      ],
+      "fail": [
+        "把项目里的技能软链回技能仓库（用的时候还要依赖本仓库）",
+        "--unlink 误删非本仓文件",
+        "技能正文里出现任何个人绝对路径或 Obsidian 专属路径",
+        "未配置知识源时静默使用某个硬编码目录"
+      ],
+      "machine_case": "check_runner.py: case_foreign / case_default_no_hooks / case_record_follows_install"
+    },
+    {
+      "id": 13,
+      "skill": "scripts/workflow_next.py",
+      "targets": [
+        "一次运行停在半句上，下一句没有落盘"
+      ],
+      "prompt": "官方任务导出停在三态还是全量，收尾是「根据项目规则进行调整」。下一次会话怎么知道该回哪一句？",
+      "pass": [
+        "python3 skills/data-workflow/scripts/workflow_next.py next 只打印一件事：READ 加 NEED，或 WAIT 加可原样粘贴的 REPLY，或 DO，或 DONE",
+        "产物文件里还有待拍板时打印 OPEN，不进入下一阶段",
+        "wait 把 question 和 reply 写入 specs/<feature>/run.json；answer 只有和 reply 一致才把 status 改回 working",
+        "code 阶段不会因为没有路径产物就自动跳过，要 done 才进入下一阶段",
+        "kind 为 review 的未完成运行存在时，hook 拒绝 specs/ 以外的写入",
+        "config.yaml 没有 protected_paths 时，默认不拦（技能不猜任何项目的核心文件）；data-service 实例在其 config.yaml 里声明 api/、proto、pb.go、status.go 后才启用拦截",
+        "workflows/change.json 三步：decision.md、改文件、check.md。不套 feature 的九项负债",
+        "会话 hook 在有未完成运行时注入 NOTICE（运行名、状态、一行摘要），不注入 next 的操作指令，也不改 run.json。LAST 和 NO_RUN 不注入。用户继续时 next 仍打印 NEED、WAIT、DO 或 OPEN",
+        "编码阶段的 done 跑该仓库的测试入口：config 的 verify，否则 package.json 的 test、Makefile 的 test、pytest 或 cargo test。都没有或退出码不是 0 时停在 RED",
+        "对技能仓库自己执行 install.sh 时，hook 指向 skills/data-workflow/hooks/，不另拷一份技能",
+        "装进另一个仓库后，用的是副本里的 workflow_next.py 和钩子。知识源为空就保持空。默认仍拒绝 proto 和 Go 文件。旁边已有的其他技能还在。再装一次不覆盖该仓库的 config.yaml"
+      ],
+      "fail": [
+        "脚本替模型写 spec 或改业务代码",
+        "问完问题只停在对话里，run.json 没有 reply",
+        "审阅运行仍允许改产品代码",
+        "没写 protected_paths 时仍按 api/、proto、pb.go、status.go 默认拦截（已改为默认不拦，data-service 需声明才拦）"
+      ],
+      "machine_case": "check_runner.py: case_answer / case_gate_read_write / case_gate_strict / case_intake / case_gate_check"
+    },
+    {
+      "id": 14,
+      "skill": "SKILL.md + scripts/workflow_next.py",
+      "targets": [
+        "阶段路由只有一份",
+        "新会话靠 DECIDED 拿回拍板"
+      ],
+      "prompt": "帮我写个技术方案（没有开运行）",
+      "pass": [
+        "先 `start change <feature> \"<原话>\"`（已有运行则 `next`），按打印的 `READ` 读那一个阶段文件",
+        "SKILL.md 里没有「阶段 → 文件」的完整映射表，只有 4 个非工作流入口（业务梳理/排查/提交/画图）",
+        "继续一条旧运行时，`next` 输出里能看到 `DECIDED <上一轮拍板的那一句>` 与 `RAW <用户原话>`"
+      ],
+      "fail": [
+        "照着 SKILL.md 的阶段表人工选文件",
+        "一次读多个 stages/ 文件",
+        "把 `DECIDED` 当成当前这句话的需求"
+      ],
+      "machine_case": "check_runner.py: case_skill_routing / case_decided"
+    }
+  ]
+}

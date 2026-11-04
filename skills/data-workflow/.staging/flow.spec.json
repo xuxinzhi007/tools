@@ -1,0 +1,313 @@
+{
+  "title": "data-workflow · 一次需求到提交 v0.2",
+  "subtitle": "workflows/feature.json 主链九步 · S 型串行 · 六道门贯穿 · 旁路不插队",
+  "width": 1120,
+  "height": 1320,
+  "cards": [
+    {
+      "title": "① 启动 · data-workflow",
+      "sub": "一次会话只跑一次，结果向下传递；所有步骤技能不再重复探测",
+      "theme": "dark",
+      "x": 30,
+      "y": 100,
+      "w": 1060,
+      "h": 160,
+      "items": [
+        "paths.sh 解析 $KNOW/$CARDS/$TEMPLATES/$REPO → repo_snapshot.sh 记 branch/commit/dirty → knowledge_drift.sh 标 FRESH/STALE",
+        "grep specs/ 与 $CARDS/ 查重（命中就接着做，不重开）→ 选型表定要做的事 → workflows/*.json 定按哪条流程串"
+      ]
+    },
+    {
+      "title": "② 需求分析",
+      "sub": "requirement-analysis → spec.md",
+      "theme": "green",
+      "x": 30,
+      "y": 296,
+      "w": 330,
+      "h": 190,
+      "items": [
+        "九项负债评估先于选方案",
+        "方案 ≥2 且必含最小改动",
+        "拍板走 grilling"
+      ]
+    },
+    {
+      "title": "③ 影响面评估",
+      "sub": "impact-assessment → impact.md",
+      "theme": "orange",
+      "x": 395,
+      "y": 296,
+      "w": 330,
+      "h": 190,
+      "items": [
+        "四轴 + 维护性三查",
+        "每项带证据或 UNVERIFIED",
+        "四轴可并行取证"
+      ]
+    },
+    {
+      "title": "④ 技术方案 + 回滚预案",
+      "sub": "tech-design → plan.md · rollback.md",
+      "theme": "blue",
+      "x": 760,
+      "y": 296,
+      "w": 330,
+      "h": 190,
+      "items": [
+        "套公司模板，空章节写「无」",
+        "回滚必须是编号步骤",
+        "单一作者视角，不拆子 agent"
+      ]
+    },
+    {
+      "title": "⑤ 实现",
+      "sub": "implementation",
+      "theme": "purple",
+      "x": 760,
+      "y": 538,
+      "w": 330,
+      "h": 190,
+      "items": [
+        "先搜再写，重复三次才抽象",
+        "碰到端点补契约测试",
+        "实现类子 agent 禁止并行"
+      ]
+    },
+    {
+      "title": "⑥ 改动审核（三轴并行）",
+      "sub": "change-review → diff.patch + review/*.md",
+      "theme": "orange",
+      "x": 395,
+      "y": 538,
+      "w": 330,
+      "h": 190,
+      "items": [
+        "spec 合规 / 代码质量 / 接口影响",
+        "三轴共读同一份 diff",
+        "主 agent 合并裁决 risk 等级"
+      ]
+    },
+    {
+      "title": "⑦ 质量门",
+      "sub": "quality-gate → quality.md",
+      "theme": "red",
+      "x": 30,
+      "y": 538,
+      "w": 330,
+      "h": 190,
+      "items": [
+        "构建 + 聚焦单测 + 覆盖率",
+        "只跑受影响包，不顺手全量",
+        "没跑过的检查不许标 ✓"
+      ]
+    },
+    {
+      "title": "⑧ 接口门（三级）",
+      "sub": "interface-test → interface-test.md",
+      "theme": "red",
+      "x": 30,
+      "y": 780,
+      "w": 330,
+      "h": 190,
+      "items": [
+        "go test ./api/... 硬门",
+        "contract_diff.sh 判 breaking",
+        "回放跑不了如实 WAIVED"
+      ]
+    },
+    {
+      "title": "⑨ 文档审计 + 提交 / MR",
+      "sub": "git-commit → change-note.md · commit",
+      "theme": "dark",
+      "x": 395,
+      "y": 780,
+      "w": 330,
+      "h": 190,
+      "items": [
+        "逐项核 specs/README/CONTEXT/生成物",
+        "不同步 → 补齐 或 显式记账",
+        "MR 套 $MR_TEMPLATE"
+      ]
+    },
+    {
+      "title": "多 agent 怎么用",
+      "sub": "references/subagent-protocol.md",
+      "theme": "purple",
+      "x": 760,
+      "y": 780,
+      "w": 330,
+      "h": 190,
+      "items": [
+        "派：≥2 个独立、无共享写状态",
+        "不派：实现、探索性 debug、裁决",
+        "fix loop ≤2 轮 → parked with ruling"
+      ]
+    }
+  ],
+  "arrows": [
+    {
+      "startX": 560,
+      "startY": 260,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          36
+        ]
+      ],
+      "label": "选完工作流进主链",
+      "labelPos": {
+        "x": 660,
+        "y": 278,
+        "w": 165
+      }
+    },
+    {
+      "startX": 360,
+      "startY": 391,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          35,
+          0
+        ]
+      ]
+    },
+    {
+      "startX": 725,
+      "startY": 391,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          35,
+          0
+        ]
+      ]
+    },
+    {
+      "startX": 925,
+      "startY": 486,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          52
+        ]
+      ],
+      "label": "方案定稿",
+      "labelPos": {
+        "x": 1000,
+        "y": 512,
+        "w": 90
+      }
+    },
+    {
+      "startX": 760,
+      "startY": 633,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          -35,
+          0
+        ]
+      ]
+    },
+    {
+      "startX": 395,
+      "startY": 633,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          -35,
+          0
+        ]
+      ]
+    },
+    {
+      "startX": 195,
+      "startY": 728,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          52
+        ]
+      ],
+      "label": "审核可继续",
+      "labelPos": {
+        "x": 210,
+        "y": 754,
+        "w": 105
+      }
+    },
+    {
+      "startX": 360,
+      "startY": 875,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          35,
+          0
+        ]
+      ]
+    }
+  ],
+  "configBoxes": [
+    {
+      "title": "贯穿全程 · 六道门",
+      "sub": "任一未过就停下等用户，不自行绕过",
+      "theme": "red",
+      "x": 30,
+      "y": 1010,
+      "w": 520,
+      "h": 270,
+      "items": [
+        "**① 负债门** 九项评估有阻塞且无缓解 = 不进技术方案",
+        "**② 影响面门** 整轴 UNVERIFIED 就下结论 = 评估未做",
+        "**③ 审核门** high/medium 即停；指纹不符 = STALE 重跑",
+        "**④ 接口门** breaking 未逐行裁决 = FAIL；跑不了 WAIVED",
+        "**⑤ 文档审计门** 不同步又不记账 = 不许沉默提交",
+        "**⑥ 新鲜度** 引用 STALE 取值却没回代码推导 = 未过"
+      ]
+    },
+    {
+      "title": "旁路与裁剪 · 不插进主链",
+      "sub": "工作流是主链的裁剪版，缺的阶段要在 change-note 记账",
+      "theme": "blue",
+      "x": 570,
+      "y": 1010,
+      "w": 520,
+      "h": 270,
+      "items": [
+        "oncall：仓库只读，诊断不授权修改",
+        "excalidraw-diagram：spec JSON → 图（本图即产出）",
+        "bugfix 先复现失败测试；hotfix 先回滚预案",
+        "review-only：只审不改，产物三轴报告 + 接口裁决"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "data-workflow",
+  "description": "IDE-agnostic requirement-to-commit workflow for Go/Kratos repos: analysis with impact assessment, tech design with artifact tree, implementation guardrails, three-axis parallel change review, quality gate with contract tests, doc audit, commit/MR, on-call investigation and diagram generation. Business facts load at runtime from a configured knowledge source, never embedded.",
+  "version": "0.2.0",
+  "author": {
+    "name": "xuxinzhi"
+  },
+  "keywords": [
+    "workflow",
+    "skills",
+    "go",
+    "kratos",
+    "thin-orchestrator"
+  ]
+}

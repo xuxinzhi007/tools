@@ -1,0 +1,13 @@
+{
+  "name": "data-workflow",
+  "owner": {
+    "name": "xuxinzhi"
+  },
+  "plugins": [
+    {
+      "name": "data-workflow",
+      "source": "./",
+      "description": "Requirement-to-commit workflow: thin orchestrator, stage skills, workflow state machines, runtime knowledge loading. Same skills/ directory is also distributed via .qoder-plugin/plugin.json and scripts/install.sh."
+    }
+  ]
+}

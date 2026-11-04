@@ -1,0 +1,15 @@
+{
+  "name": "@local/cyber-web-demo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Single-file cyber web-crawler demo driven by a mock data-workflow event stream.",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "check": "node build.mjs --check",
+    "test": "node --test test/*.test.mjs",
+    "shot:blocked": "node tools/cdp-probe.mjs \"file://$(node -e 'console.log(process.cwd())')/index.html?at=2500\" screenshots/gate-blocked.png",
+    "shot:verify": "node tools/cdp-probe.mjs \"file://$(node -e 'console.log(process.cwd())')/index.html?at=10000\" screenshots/quality-gate.png",
+    "shot:red": "node tools/cdp-probe.mjs \"file://$(node -e 'console.log(process.cwd())')/index.html?mode=red&at=11400\" screenshots/verify-red.png"
+  }
+}

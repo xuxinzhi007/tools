@@ -1,0 +1,9 @@
+{
+  "source": {"mode": "file", "path": "/tmp/data-service-local.log"},
+  "port": 8767,
+  "devops": {
+    "token": "替换成 Bearer，不要带 Bearer 前缀",
+    "environment": "ns-cloud-test",
+    "service": "data-service"
+  }
+} 

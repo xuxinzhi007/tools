@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>任务标签脏数据修复 SQL 生成器</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --card: #fff;
+      --border: #e5e7eb;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --primary: #2563eb;
+      --danger: #dc2626;
+      --ok: #059669;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    body { display: flex; align-items: flex-start; }
+    .sidenav {
+      width: 196px; flex: none; position: sticky; top: 0; height: 100vh; overflow: auto;
+      background: #fff; border-right: 1px solid var(--border); padding: 16px 12px;
+    }
+    .sidenav-title { margin: 0 0 8px 6px; font-size: 12px; color: var(--muted); font-weight: 600; }
+    .sidenav a {
+      display: block; padding: 8px 10px; border-radius: 8px; margin-bottom: 2px;
+      text-decoration: none; color: inherit; font-size: 14px;
+    }
+    .sidenav a:hover { background: #f3f4f6; }
+    .sidenav a.on { background: #eff6ff; color: var(--primary); font-weight: 600; }
+    .wrap { flex: 1; min-width: 0; max-width: 960px; margin: 0 auto; padding: 24px 16px 48px; }
+    @media (max-width: 800px) {
+      body { display: block; }
+      .sidenav { width: auto; height: auto; position: static; display: flex; flex-wrap: wrap; gap: 4px; }
+      .sidenav-title { width: 100%; }
+    }
+    h1 { font-size: 22px; margin: 0 0 8px; }
+    .sub { color: var(--muted); margin-bottom: 20px; font-size: 14px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+    .card h2 { font-size: 16px; margin: 0 0 12px; }
+    label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+    .hint { font-size: 12px; color: var(--muted); margin: -2px 0 8px; }
+    input, select, textarea {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+    textarea { min-height: 360px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 640px) { .grid { grid-template-columns: 1fr; } }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    button {
+      border: none;
+      border-radius: 6px;
+      padding: 8px 14px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-secondary { background: #eef2ff; color: #3730a3; }
+    .btn-danger { background: #fef2f2; color: var(--danger); }
+    .alert {
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 12px;
+    }
+    .alert-warn { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+    .alert-info { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+    .alert-ok { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; }
+    ul.compact { margin: 8px 0 0; padding-left: 18px; font-size: 13px; color: var(--muted); }
+    code { background: #f3f4f6; padding: 1px 4px; border-radius: 4px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <nav class="sidenav">
+    <div class="sidenav-title">工具</div>
+    <a href="/">标签编辑</a>
+    <a href="/tools/pretrain-resync">预训练重刷</a>
+    <a class="on" href="/tools/label-repair">脏数据修复</a>
+    <a href="/tools/qc-init">质检初始化</a>
+  </nav>
+  <div class="wrap">
+    <h1>任务标签脏数据修复 SQL 生成器</h1>
+    <p class="sub">
+      场景：租户内存在<strong>手动创建的 L1 分类</strong>（无 <code>tag_code</code>），与系统固定 L1（如 <code>annotation_task_label</code>）重复。
+      将旧 L1 下的<strong>子标签</strong>迁移到系统 L1。<br />
+      <strong>当前后端 API 不支持修改 parent_id</strong>，请用本工具生成 SQL，在 Navicat / mysql 客户端执行。
+    </p>
+
+    <div class="alert alert-warn">
+      执行前请先备份 <code>tb_tag</code>、<code>tb_job_tag</code>。<strong>Navicat / DBeaver 请每条 SQL 单独选中执行</strong>（不支持 <code>SET @var</code> 多语句批跑）。
+      若系统 L1 尚不存在，先跑 <code>docs/SQL/seed_system_label_tags_&lt;tenant&gt;.sql</code>。
+    </div>
+
+    <div class="card">
+      <h2>参数</h2>
+      <div class="grid">
+        <div>
+          <label for="tenantId">tenant_id</label>
+          <p class="hint">Global 系统固定标签填 <code>0</code>；租户内 lazy ensure 填具体租户如 <code>888888</code>。</p>
+          <input id="tenantId" type="number" value="0" min="0" step="1" />
+        </div>
+        <div>
+          <label for="category">L1 分类</label>
+          <select id="category">
+            <option value="annotation_task_label">标注任务标签 (annotation_task_label)</option>
+            <option value="collection_task_label">数采任务标签 (collection_task_label)</option>
+          </select>
+        </div>
+        <div style="grid-column: 1 / -1">
+          <label for="oldL1Id">旧 L1 tag_id（手动创建、无 tag_code）</label>
+          <p class="hint">例：tag-dc5umtfiwe4fgeks — tag_name=标注任务标签，tag_code 为空</p>
+          <input id="oldL1Id" type="text" value="tag-dc5umtfiwe4fgeks" placeholder="tag-xxxxxxxx" />
+        </div>
+        <div style="grid-column: 1 / -1">
+          <label for="systemL1Id">系统 L1 tag_id（可选，留空则按 tag_code 自动查找）</label>
+          <input id="systemL1Id" type="text" placeholder="留空自动 SELECT ... WHERE tag_code=..." />
+        </div>
+      </div>
+      <div class="actions">
+        <button class="btn-secondary" type="button" id="btnDiag">生成诊断 SQL</button>
+        <button class="btn-primary" type="button" id="btnRepair">生成修复 SQL</button>
+        <button class="btn-danger" type="button" id="btnDisableOld">修复 + 禁用旧 L1</button>
+        <button class="btn-secondary" type="button" id="btnCopy">复制 SQL</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>生成的 SQL</h2>
+      <div id="status" class="alert alert-info">点击上方按钮生成 SQL。</div>
+      <textarea id="output" readonly spellcheck="false"></textarea>
+    </div>
+
+    <div class="card">
+      <h2>说明</h2>
+      <ul class="compact">
+        <li><strong>不等于 API 修复</strong>：Tag Update 接口不能改 parent_id，只能 SQL 或后续专用运维接口。</li>
+        <li>修复后 ListTags / InternalListTags 按 <code>parent_tag_code</code> 查树，子标签会出现在系统 L1 的 <code>sub_tags</code> 下。</li>
+        <li>若「迁移前诊断」出现<strong>同名冲突</strong>，需人工合并或改名后再执行 UPDATE。</li>
+        <li>旧 L1 默认<strong>不禁用</strong>；可选「修复 + 禁用旧 L1」将 <code>status=1</code>，避免前端仍选到重复分类。</li>
+        <li>Navicat / DBeaver：<strong>每条 SQL 单独选中执行</strong>，不要用 <code>SET @</code> + 多语句批跑。</li>
+        <li>相关脚本：<code>docs/SQL/repair_duplicate_label_l1.sql</code>、<code>seed_system_label_tags_888888.sql</code></li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    const CATEGORY_META = {
+      annotation_task_label: { name: "标注任务标签" },
+      collection_task_label: { name: "数采任务标签" },
+    };
+
+    function escSql(s) {
+      return String(s || "").replace(/'/g, "''");
+    }
+
+    function parseTenantId(raw) {
+      const tenantId = Number(raw);
+      if (!Number.isInteger(tenantId) || tenantId < 0) {
+        return null;
+      }
+      return tenantId;
+    }
+
+    function sysL1Join(tenantId, tagCode, systemL1Id) {
+      if (systemL1Id) {
+        return `sys_l1.tag_id = '${escSql(systemL1Id)}' AND sys_l1.tenant_id = ${tenantId}`;
+      }
+      // Global 系统 L1（tenant_id=0）按 tag_code 定位，与 data-service SystemTagTenantID 一致
+      if (tenantId === 0) {
+        return `sys_l1.tenant_id = 0 AND sys_l1.tag_code = '${escSql(tagCode)}'`;
+      }
+      return `sys_l1.tenant_id = ${tenantId} AND sys_l1.tag_code = '${escSql(tagCode)}'`;
+    }
+
+    function buildHeader(tenantId, tagCode, oldL1Id) {
+      const meta = CATEGORY_META[tagCode];
+      return `-- =============================================================================
+-- 任务标签 L1 重复脏数据 | tenant_id=${tenantId}
+-- 系统 L1: ${tagCode} (${meta.name})
+-- 旧 L1: ${oldL1Id}
+-- 用法：每条 SQL 单独选中执行（Navicat/DBeaver 不支持 SET @ 批跑）
+-- 生成: ${new Date().toISOString()}
+-- =============================================================================
+
+`;
+    }
+
+    function diagnosticSql(tenantId, tagCode, oldL1Id, sysJoin) {
+      const old = escSql(oldL1Id);
+      return `-- 1 诊断：旧 L1
+SELECT tag_id, tenant_id, tag_name, tag_code, level, parent_id, status, created_by
+FROM tb_tag
+WHERE tag_id = '${old}' AND tenant_id = ${tenantId};
+
+-- 2 诊断：系统 L1（tenant_id=${tenantId}${tenantId === 0 ? "，Global" : ""}）
+SELECT tag_id, tenant_id, tag_name, tag_code, level, parent_id, status
+FROM tb_tag
+WHERE tenant_id = ${tenantId} AND tag_code = '${escSql(tagCode)}';
+
+-- 3 诊断：待迁移子标签
+SELECT tag_id, tag_name, tag_code, level, parent_id, status
+FROM tb_tag
+WHERE tenant_id = ${tenantId} AND parent_id = '${old}'
+ORDER BY tag_name;
+
+-- 4 诊断：同名冲突（有结果需先改名/合并）
+SELECT child.tag_id AS child_to_move, child.tag_name, dup.tag_id AS existing_under_system_l1
+FROM tb_tag child
+INNER JOIN tb_tag sys_l1 ON ${sysJoin}
+INNER JOIN tb_tag dup
+  ON dup.tenant_id = child.tenant_id
+ AND dup.parent_id = sys_l1.tag_id
+ AND dup.tag_name = child.tag_name
+ AND dup.tag_id <> child.tag_id
+WHERE child.tenant_id = ${tenantId}
+  AND child.parent_id = '${old}';
+
+-- 5 诊断：tb_job_tag 是否指向旧 L1
+SELECT jt.job_id, jt.tag_id, jt.relation_type
+FROM tb_job_tag jt
+WHERE jt.tenant_id = ${tenantId} AND jt.tag_id = '${old}';
+
+-- 6 诊断：parent_id 断链孤儿
+SELECT child.tag_id, child.tag_name, child.tag_code, child.parent_id
+FROM tb_tag child
+LEFT JOIN tb_tag p ON p.tag_id = child.parent_id
+WHERE child.tenant_id = ${tenantId}
+  AND child.parent_id IS NOT NULL AND TRIM(child.parent_id) <> ''
+  AND p.tag_id IS NULL;
+`;
+    }
+
+    function repairSql(tenantId, oldL1Id, sysJoin, disableOld) {
+      const old = escSql(oldL1Id);
+      let sql = `-- ========== 修复（确认诊断无误后，逐条执行） ==========
+
+-- 7 修复：子标签挂到系统 L1
+UPDATE tb_tag child
+INNER JOIN tb_tag sys_l1 ON ${sysJoin}
+LEFT JOIN tb_tag dup
+  ON dup.tenant_id = child.tenant_id
+ AND dup.parent_id = sys_l1.tag_id
+ AND dup.tag_name = child.tag_name
+ AND dup.tag_id <> child.tag_id
+SET child.parent_id = sys_l1.tag_id,
+    child.updated_at = CURRENT_TIMESTAMP
+WHERE child.tenant_id = ${tenantId}
+  AND child.parent_id = '${old}'
+  AND child.parent_id <> sys_l1.tag_id
+  AND dup.tag_id IS NULL;
+
+-- 8 修复：tb_job_tag 若误绑旧 L1
+UPDATE tb_job_tag jt
+INNER JOIN tb_tag sys_l1 ON ${sysJoin}
+SET jt.tag_id = sys_l1.tag_id
+WHERE jt.tenant_id = ${tenantId}
+  AND jt.tag_id = '${old}'
+  AND jt.tag_id <> sys_l1.tag_id;
+`;
+      if (disableOld) {
+        sql += `
+-- 9 禁用旧 L1
+UPDATE tb_tag old_l1
+INNER JOIN tb_tag sys_l1 ON ${sysJoin}
+SET old_l1.status = 1, old_l1.updated_at = CURRENT_TIMESTAMP
+WHERE old_l1.tag_id = '${old}'
+  AND old_l1.tenant_id = ${tenantId}
+  AND old_l1.tag_id <> sys_l1.tag_id;
+`;
+      }
+      sql += `
+-- 10 验证：旧 L1 下应无子标签
+SELECT COUNT(*) AS remaining_children_under_old_l1
+FROM tb_tag
+WHERE tenant_id = ${tenantId} AND parent_id = '${old}';
+
+-- 11 验证：系统 L1 子树
+SELECT t.tag_id, t.tag_name, t.tag_code, t.level, t.parent_id
+FROM tb_tag t
+INNER JOIN tb_tag sys_l1 ON ${sysJoin}
+WHERE t.tenant_id = ${tenantId}
+  AND (t.tag_id = sys_l1.tag_id OR t.parent_id = sys_l1.tag_id)
+ORDER BY t.level, t.tag_name;
+`;
+      return sql;
+    }
+
+    function generate(mode) {
+      const tenantId = parseTenantId(document.getElementById("tenantId").value);
+      const tagCode = document.getElementById("category").value;
+      const oldL1Id = document.getElementById("oldL1Id").value.trim();
+      const systemL1Id = document.getElementById("systemL1Id").value.trim();
+      const statusEl = document.getElementById("status");
+      const outputEl = document.getElementById("output");
+
+      if (tenantId === null) {
+        statusEl.className = "alert alert-warn";
+        statusEl.textContent = "请填写有效的 tenant_id（0 表示 Global 系统标签，非负整数均可）。";
+        return;
+      }
+      const sysJoin = sysL1Join(tenantId, tagCode, systemL1Id);
+      if (!oldL1Id) {
+        statusEl.className = "alert alert-warn";
+        statusEl.textContent = "请填写旧 L1 的 tag_id。";
+        return;
+      }
+
+      let sql = buildHeader(tenantId, tagCode, oldL1Id);
+      sql += diagnosticSql(tenantId, tagCode, oldL1Id, sysJoin);
+      if (mode !== "diagnostic") {
+        sql += repairSql(tenantId, oldL1Id, sysJoin, mode === "repair_disable");
+      }
+
+      statusEl.className = "alert alert-ok";
+      statusEl.textContent = mode === "diagnostic"
+        ? "已生成诊断 SQL。每条单独选中执行。"
+        : mode === "repair_disable"
+          ? "已生成诊断 + 修复 SQL（含禁用旧 L1）。先跑 1–6，再逐条跑 7–11。"
+          : "已生成诊断 + 修复 SQL。先跑 1–6，再逐条跑 7–11。";
+      outputEl.value = sql.trim() + "\n";
+    }
+
+    document.getElementById("btnDiag").addEventListener("click", () => generate("diagnostic"));
+    document.getElementById("btnRepair").addEventListener("click", () => generate("repair"));
+    document.getElementById("btnDisableOld").addEventListener("click", () => generate("repair_disable"));
+    document.getElementById("btnCopy").addEventListener("click", async () => {
+      const text = document.getElementById("output").value;
+      if (!text) return;
+      try {
+        await navigator.clipboard.writeText(text);
+        document.getElementById("status").textContent = "SQL 已复制到剪贴板。";
+      } catch (e) {
+        document.getElementById("output").select();
+        document.execCommand("copy");
+        document.getElementById("status").textContent = "SQL 已复制（fallback）。";
+      }
+    });
+
+    document.getElementById("category").addEventListener("change", (e) => {
+      const code = e.target.value;
+      if (code === "annotation_task_label") {
+        document.getElementById("oldL1Id").value = "tag-dc5umtfiwe4fgeks";
+      } else {
+        document.getElementById("oldL1Id").value = "";
+      }
+    });
+  </script>
+</body>
+</html>

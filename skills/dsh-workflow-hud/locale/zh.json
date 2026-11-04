@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "工作流 HUD",
+    "description": "浮层工作流驾驶舱：按会话关联 data-workflow 运行，显示每个阶段的门禁、必填项、产物、evidence、verify 与 runner 门禁日志，并可在全屏赛博蛛网上把阶段、门禁和日志连成数据链路。"
+  }
+}

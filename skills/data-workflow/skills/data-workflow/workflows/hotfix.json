@@ -1,0 +1,86 @@
+{
+  "name": "hotfix",
+  "kind": "execute",
+  "when": "data-service（Go 栈）实例线上正在出事，需要最短路径止血。用户说「线上炸了」「马上回滚」「先止血」时走这条。",
+  "principle": "止血优先，但**回滚预案与契约 diff 不能省**——这两件事恰好是事后最贵的。允许跳过技术方案与完整审核，跳过的每一项都要在 change-note 记账，事后补。",
+  "artifacts_root": "specs/<feature>/",
+  "stages": [
+    {
+      "id": 1,
+      "name": "止血决策（只读，5 分钟内出结论）",
+      "reads": [
+        "$CARDS/（grep 症状词，命中就直接用）",
+        "$REPO 当前 checkout"
+      ],
+      "artifacts": [
+        "specs/<feature>/triage.md"
+      ],
+      "gate": "triage.md 写清：症状 / 最可能链路 / 三个选项（回滚发布 / 关开关 / 打补丁）各自的代价。给出可执行的下一步，而不是「继续排查」；根因未明也能止血时，先止血再排根因",
+      "subagents": {
+        "allowed": false,
+        "reason": "事故期不 fan-out：上下文共享成本高，且需要单一决策者"
+      },
+      "file": "stages/oncall/SKILL.md"
+    },
+    {
+      "id": 2,
+      "name": "回滚预案（先于任何代码改动）",
+      "reads": [
+        "$REPO"
+      ],
+      "artifacts": [
+        "specs/<feature>/rollback.md"
+      ],
+      "template": "templates/rollback-template.md",
+      "gate": "轴 4 填完：代码回滚步骤、数据可逆性、半回滚开关、触发条件与阈值",
+      "on_gate_fail": "不许上线没有回滚步骤的 hotfix",
+      "file": "stages/impact-assessment/SKILL.md"
+    },
+    {
+      "id": 3,
+      "name": "最小修复",
+      "code": true,
+      "artifacts": [
+        "最小 diff（只改必要的那一处）"
+      ],
+      "gate": "不顺手重构、不顺手改格式、不加开关以外的新能力——hotfix 的 diff 越小越好审",
+      "subagents": {
+        "allowed": false,
+        "reason": "实现类子 agent 禁止并行"
+      },
+      "file": "stages/implementation/SKILL.md"
+    },
+    {
+      "id": 4,
+      "name": "必过门（不可跳过）",
+      "artifacts": [
+        "specs/<feature>/quality.md",
+        "specs/<feature>/interface-test.md"
+      ],
+      "gate": "（仅当 stack=go）构建通过 + 相关包单测通过 + 契约 ①（go test ./api/...）+ 契约 ②（contract_diff.sh）；③ 场景回放跑不了就如实 WAIVED",
+      "calls": [
+        "stages/interface-test/SKILL.md"
+      ],
+      "note": "hotfix 最容易在这里出事：急着上线，结果改了 proto 没人知道。契约 ② 只要 0.5 秒，没有跳过的理由。",
+      "file": "stages/quality-gate/SKILL.md"
+    },
+    {
+      "id": 5,
+      "name": "提交与记账",
+      "artifacts": [
+        "specs/<feature>/change-note.md",
+        "commit"
+      ],
+      "template": "templates/change-note-template.md",
+      "gate": "change-note 里显式列出**跳过了什么**（技术方案 / 三轴审核 / 场景回放）与**谁在什么时候补**",
+      "on_gate_fail": "记账不完整不许提交——事后没人知道欠了什么",
+      "file": "stages/git-commit/SKILL.md"
+    }
+  ],
+  "after_incident": [
+    "根因归档成卡片：$CARDS/YYYY-MM-DD-<症状>.md（带 verified_commit 与 watches），走 oncall 的 references/capture.md",
+    "补做被跳过的三轴审核（stages/change-review/SKILL.md）",
+    "若暴露出流程缺口，回来改本工作流而不是靠记忆"
+  ],
+  "bypass": []
+}

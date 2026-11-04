@@ -1,0 +1,57 @@
+{
+  "title": "日常怎么用 data-workflow",
+  "subtitle": "在 data-service 窗口新开 Agent 会话。只聊天不会被拦，一改代码才查放行记录。",
+  "width": 1180,
+  "height": 820,
+  "cards": [
+    {
+      "title": "① 新开会话",
+      "sub": "data-service 仓库",
+      "theme": "gray",
+      "x": 50, "y": 130, "w": 320, "h": 220,
+      "items": ["不要在技能仓库里聊", "旧会话不会补注入", "直接说要改什么"]
+    },
+    {
+      "title": "② 看改哪类文件",
+      "sub": "hook 只认路径",
+      "theme": "blue",
+      "x": 430, "y": 130, "w": 320, "h": 220,
+      "items": ["协议和 status.go", "其它 Go 文件", "specs/ 与文档直接写"]
+    },
+    {
+      "title": "③ 内部小改动",
+      "sub": "waiver 一行",
+      "theme": "green",
+      "x": 810, "y": 130, "w": 320, "h": 220,
+      "items": ["不走整条 feature", "先追加 waiver 行", "再改那个 Go 文件"]
+    },
+    {
+      "title": "⑥ 关掉",
+      "sub": "两档",
+      "theme": "dark",
+      "x": 50, "y": 480, "w": 320, "h": 220,
+      "items": ["只关拦截：删 hooks 三条", "连技能卸掉：install --unlink", "config.yaml 会留下"]
+    },
+    {
+      "title": "⑤ 门禁",
+      "sub": "每步问一次",
+      "theme": "orange",
+      "x": 430, "y": 480, "w": 320, "h": 220,
+      "items": ["不说一路到底就停下问", "门没过仍然停", "选了编码实现会带上审核"]
+    },
+    {
+      "title": "④ 协议和状态",
+      "sub": "design 一行",
+      "theme": "red",
+      "x": 810, "y": 480, "w": 320, "h": 220,
+      "items": ["先有 plan.md", "gate 首行 plan pass", "再追加 design 前缀"]
+    }
+  ],
+  "arrows": [
+    { "startX": 370, "startY": 240, "points": [[0, 0], [60, 0]], "label": "开口", "labelPos": { "x": 386, "y": 208 } },
+    { "startX": 750, "startY": 240, "points": [[0, 0], [60, 0]], "label": "小改动", "labelPos": { "x": 760, "y": 208 } },
+    { "startX": 970, "startY": 350, "points": [[0, 0], [0, 130]], "label": "若动协议", "labelPos": { "x": 984, "y": 400 } },
+    { "startX": 810, "startY": 590, "points": [[0, 0], [-60, 0]], "label": "继续", "labelPos": { "x": 730, "y": 562 } },
+    { "startX": 430, "startY": 590, "points": [[0, 0], [-60, 0]], "label": "不用了", "labelPos": { "x": 340, "y": 562 } }
+  ]
+}

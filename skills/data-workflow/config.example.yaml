@@ -1,0 +1,69 @@
+# data-workflow 配置示例。
+# install.sh 会把它复制到目标仓库的 .<工具>/skills/data-workflow/config.yaml，
+# 和技能目录放在一起。已存在则不覆盖。多个工具目录共用这一份。
+#
+# 解析优先级：环境变量 DATA_WORKFLOW_<键名大写>
+#             > <项目>/.cursor|qoder|agents|claude|codex/skills/data-workflow/config.yaml
+#             > <当前 git 根>/config.yaml
+#             > ~/.config/data-workflow/config.yaml > 空。
+# 不读技能仓库里的 config.yaml。
+# 统一入口：bash scripts/resolve.sh <键名>（stdout 只输出值，来源说明走 stderr）；
+#           bash scripts/paths.sh 一次性 eval 出全部变量。
+#
+# 知识源因人而异：Obsidian 用户填 vault 路径；不用 Obsidian 的填仓库内 docs/ 或任何目录。
+# 所有键留空 = 未配置。技能与脚本遇到未配置会**显式声明降级**（改用仓库内 docs/ 或询问用户），绝不猜绝对路径。
+
+# 知识源根目录：存放按业务域拆分的 md 与 排查卡片/ 的目录。knowledge_drift.sh 扫这里。
+knowledge_root: ""
+
+# 模板目录：技术方案、MR 描述等模板所在目录。
+templates_root: ""
+
+# 调查卡片目录；留空 = <knowledge_root>/排查卡片
+cards_dir: ""
+
+# 被测仓库根；留空 = 当前目录所在仓库（或 $DS_REPO）。
+repo: ""
+
+# 技术方案模板文件；留空时 tech-design 会询问用户，不得猜路径。
+tech_design_template: ""
+
+# MR 描述模板文件；留空时 git-commit 用内置结构。
+mr_template: ""
+
+# 个人规范文件（可选）；change-review 的 standards-spec 会读它补充个人偏好，留空则跳过。
+personal_agents_md: ""
+
+# 技术栈。决定 feature 九步链是否启用 Go 专属门（go-style、contract_diff、go test ./api/...、api/**/*_contract_test.go）。
+# 留空 = 通用项目，默认走 change 工作流 + 该项目声明的测试入口。data-service 实例填 go。
+# stack: "go"
+
+# 业务域清单（逗号分隔，相对 $KNOW）。`scripts/paths.sh` 把它输出成 `$DOMAINS`，oncall 业务梳理的域路由优先用这份；
+# 留空时看 $KNOW 下目录 + routing.md 的 data-service 示例表。
+# domains: "采集任务,审批流程,任务分发,采集批次,数据条目,设备管理,质检管理,标签管理,小组管理,多样性模板,任务配置,飞书配置"
+
+# 写入门。默认（两个键都不出现时）没有受保护路径，技能不猜任何项目的核心文件，specs/ 之外的写入直接放行。
+# 写了就按逗号分隔的清单，相对仓库根。protected_paths 为空表示没有路径要 design。
+# waiver_globs 为空表示没有路径要 waiver。
+# data-service 实例通过这里启用写入门禁（示例取值）：
+# protected_paths: "api/**,*.proto,*.pb.go,internal/biz/status.go,*/biz/status.go"
+# waiver_globs: "*.go"
+#
+# 门禁严格度。不写这个键 = fail-open：hook 崩溃、坏输入、找不到 python 时放行并说明。
+# 写 "true" = fail-closed：上述情况一律拒绝，且 specs/passes.log 只认 approve 写的行（末尾带 approved）。
+# 代价是环境缺 python 时会把写入全拦掉。
+# gate_strict: "true"
+
+# 解释器（可选）。留空时依次探测 py -3 / python3 / python / PATH 目录里的 python.exe，
+# 每个都实跑一次 `-c "import sys"`。Windows 上 python3 常是 Store 占位程序，会被跳过。
+# DATA_WORKFLOW_PYTHON: ""
+
+# 运行记录写到这个目录（相对当前工作仓库，或绝对路径）。
+# 留空时一律写当前工作仓库自己的 specs/<feature>/：谁 install 了技能，记录就跟着谁，
+# 不回到技能源仓库。install.sh 会把 specs/ 写进该仓库的 .gitignore，不让它出现在 git status。
+# artifacts_root: ""
+
+# 编码阶段的 done 执行这一条。退出码不是 0 就不进入下一步。
+# 留空时用仓库已经声明的入口：package.json 的 test、Makefile 的 test、pytest、cargo test。
+# 都没有就停在 RED。不按某一个服务猜测试命令。
+verify: ""

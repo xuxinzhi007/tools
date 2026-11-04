@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 820" width="100%" height="100%">
+  <defs>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.07"/>
+    </filter>
+    <filter id="red-shadow" x="-4%" y="-4%" width="108%" height="108%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="5" stdDeviation="8" flood-color="#e03131" flood-opacity="0.10"/>
+    </filter>
+    <marker id="arrow-gray" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+      <path d="M 0 1.5 L 7.5 4.5 L 0 7.5 Z" fill="#495057" />
+    </marker>
+    <marker id="arrow-red" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+      <path d="M 0 1.5 L 7.5 4.5 L 0 7.5 Z" fill="#e03131" />
+    </marker>
+    <style>
+      .title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; font-weight: 800; fill: #1e1e1e; }
+      .subtitle { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", sans-serif; font-weight: 500; fill: #495057; }
+      .card-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", sans-serif; font-weight: 700; font-size: 19px; }
+      .card-sub { font-family: "SF Mono", "Consolas", Menlo, monospace; font-size: 13px; fill: #868e96; }
+      .card-item { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", sans-serif; font-size: 14.5px; fill: #2b2b2b; }
+      .tag-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", sans-serif; font-size: 13px; font-weight: 600; fill: #495057; text-anchor: middle; }
+      .cfg-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", sans-serif; font-size: 13px; font-weight: 700; fill: #c92a2a; text-anchor: middle; }
+    </style>
+  </defs>
+
+  <rect width="100%" height="100%" fill="#ffffff" rx="16"/>
+
+  <g transform="translate(590, 50)" text-anchor="middle">
+    <text class="title" font-size="30" y="0">日常怎么用 data-workflow</text>
+    <text class="subtitle" font-size="16" y="32">在 data-service 窗口新开 Agent 会话。只聊天不会被拦，一改代码才查放行记录。</text>
+  </g>
+
+  <!-- 卡片 -->
+  
+    <g transform="translate(50, 130)" filter="url(#shadow)">
+      <rect width="320" height="220" rx="14" fill="#f8f9fa" stroke="#868e96" stroke-width="2"/>
+      <text class="card-title" x="160" y="36" text-anchor="middle" fill="#212529">① 新开会话</text>
+      <text class="card-sub" x="160" y="56" text-anchor="middle">data-service 仓库</text>
+      <line x1="25" y1="72" x2="295" y2="72" stroke="#dee2e6" stroke-width="1.5" stroke-dasharray="4,4"/>
+      <g class="card-item" transform="translate(24, 102)">
+        <text y="0">• 不要在技能仓库里聊</text>
+        <text y="28">• 旧会话不会补注入</text>
+        <text y="56">• 直接说要改什么</text>
+      </g>
+    </g>
+
+    <g transform="translate(430, 130)" filter="url(#shadow)">
+      <rect width="320" height="220" rx="14" fill="#e7f5ff" stroke="#1971c2" stroke-width="2"/>
+      <text class="card-title" x="160" y="36" text-anchor="middle" fill="#1971c2">② 看改哪类文件</text>
+      <text class="card-sub" x="160" y="56" text-anchor="middle">hook 只认路径</text>
+      <line x1="25" y1="72" x2="295" y2="72" stroke="#a5d8ff" stroke-width="1.5" stroke-dasharray="4,4"/>
+      <g class="card-item" transform="translate(24, 102)">
+        <text y="0">• 协议和 status.go</text>
+        <text y="28">• 其它 Go 文件</text>
+        <text y="56">• specs/ 与文档直接写</text>
+      </g>
+    </g>
+
+    <g transform="translate(810, 130)" filter="url(#shadow)">
+      <rect width="320" height="220" rx="14" fill="#ebfbee" stroke="#0ca678" stroke-width="2"/>
+      <text class="card-title" x="160" y="36" text-anchor="middle" fill="#0ca678">③ 内部小改动</text>
+      <text class="card-sub" x="160" y="56" text-anchor="middle">waiver 一行</text>
+      <line x1="25" y1="72" x2="295" y2="72" stroke="#b2f2bb" stroke-width="1.5" stroke-dasharray="4,4"/>
+      <g class="card-item" transform="translate(24, 102)">
+        <text y="0">• 不走整条 feature</text>
+        <text y="28">• 先追加 waiver 行</text>
+        <text y="56">• 再改那个 Go 文件</text>
+      </g>
+    </g>
+
+    <g transform="translate(50, 480)" filter="url(#shadow)">
+      <rect width="320" height="220" rx="14" fill="#f1f3f5" stroke="#343a40" stroke-width="2"/>
+      <text class="card-title" x="160" y="36" text-anchor="middle" fill="#212529">⑥ 关掉</text>
+      <text class="card-sub" x="160" y="56" text-anchor="middle">两档</text>
+      <line x1="25" y1="72" x2="295" y2="72" stroke="#ced4da" stroke-width="1.5" stroke-dasharray="4,4"/>
+      <g class="card-item" transform="translate(24, 102)">
+        <text y="0">• 只关拦截：删 hooks 三条</text>
+        <text y="28">• 连技能卸掉：install --unlink</text>
+        <text y="56">• config.yaml 会留下</text>
+      </g>
+    </g>
+
+    <g transform="translate(430, 480)" filter="url(#shadow)">
+      <rect width="320" height="220" rx="14" fill="#fff4e6" stroke="#e8590c" stroke-width="2"/>
+      <text class="card-title" x="160" y="36" text-anchor="middle" fill="#e8590c">⑤ 门禁</text>
+      <text class="card-sub" x="160" y="56" text-anchor="middle">每步问一次</text>
+      <line x1="25" y1="72" x2="295" y2="72" stroke="#ffc078" stroke-width="1.5" stroke-dasharray="4,4"/>
+      <g class="card-item" transform="translate(24, 102)">
+        <text y="0">• 不说一路到底就停下问</text>
+        <text y="28">• 门没过仍然停</text>
+        <text y="56">• 选了编码实现会带上审核</text>
+      </g>
+    </g>
+
+    <g transform="translate(810, 480)" filter="url(#shadow)">
+      <rect width="320" height="220" rx="14" fill="#fff5f5" stroke="#e03131" stroke-width="2"/>
+      <text class="card-title" x="160" y="36" text-anchor="middle" fill="#c92a2a">④ 协议和状态</text>
+      <text class="card-sub" x="160" y="56" text-anchor="middle">design 一行</text>
+      <line x1="25" y1="72" x2="295" y2="72" stroke="#ffc9c9" stroke-width="1.5" stroke-dasharray="4,4"/>
+      <g class="card-item" transform="translate(24, 102)">
+        <text y="0">• 先有 plan.md</text>
+        <text y="28">• gate 首行 plan pass</text>
+        <text y="56">• 再追加 design 前缀</text>
+      </g>
+    </g>
+
+  <!-- 连线与标签 -->
+  
+    <g>
+      <path d="M 370 240 L 430 240" fill="none" stroke="#495057" stroke-width="2.2"  marker-end="url(#arrow-gray)"/>
+      
+      <rect x="356" y="194" width="60" height="22" rx="4" fill="#f1f3f5" />
+      <text class="tag-text" x="386" y="208" text-anchor="middle">开口</text>
+    </g>
+
+    <g>
+      <path d="M 750 240 L 810 240" fill="none" stroke="#495057" stroke-width="2.2"  marker-end="url(#arrow-gray)"/>
+      
+      <rect x="730" y="194" width="60" height="22" rx="4" fill="#f1f3f5" />
+      <text class="tag-text" x="760" y="208" text-anchor="middle">小改动</text>
+    </g>
+
+    <g>
+      <path d="M 970 350 L 970 480" fill="none" stroke="#495057" stroke-width="2.2"  marker-end="url(#arrow-gray)"/>
+      
+      <rect x="954" y="386" width="60" height="22" rx="4" fill="#f1f3f5" />
+      <text class="tag-text" x="984" y="400" text-anchor="middle">若动协议</text>
+    </g>
+
+    <g>
+      <path d="M 810 590 L 750 590" fill="none" stroke="#495057" stroke-width="2.2"  marker-end="url(#arrow-gray)"/>
+      
+      <rect x="700" y="548" width="60" height="22" rx="4" fill="#f1f3f5" />
+      <text class="tag-text" x="730" y="562" text-anchor="middle">继续</text>
+    </g>
+
+    <g>
+      <path d="M 430 590 L 370 590" fill="none" stroke="#495057" stroke-width="2.2"  marker-end="url(#arrow-gray)"/>
+      
+      <rect x="310" y="548" width="60" height="22" rx="4" fill="#f1f3f5" />
+      <text class="tag-text" x="340" y="562" text-anchor="middle">不用了</text>
+    </g>
+
+  <!-- 配置驱动底框 -->
+  
+</svg>

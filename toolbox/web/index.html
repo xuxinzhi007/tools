@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>工具箱</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0f1115;--panel:#171a21;--panel2:#1e222b;--line:#282d38;
+  --fg:#e6e9ef;--dim:#8b93a3;--accent:#4f8cff;
+  --run:#33c46b;--ext:#e0a63c;--err:#ef4d5a;--start:#4f8cff;
+}
+@media(prefers-color-scheme:light){
+  :root{--bg:#f5f6f8;--panel:#fff;--panel2:#fafbfc;--line:#e3e6ec;--fg:#1f2329;--dim:#7a828f}
+}
+body{background:var(--bg);color:var(--fg);font:14px/1.55 -apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",sans-serif;padding:24px 22px 64px}
+.wrap{max-width:1220px;margin:0 auto}
+header{display:flex;align-items:center;gap:14px;margin-bottom:20px;flex-wrap:wrap}
+h1{font-size:19px;font-weight:600;letter-spacing:.3px}
+.meta{color:var(--dim);font-size:12px;font-family:ui-monospace,Menlo,monospace}
+.spacer{flex:1}
+.sum{display:flex;gap:14px;align-items:center;font-size:12px;color:var(--dim)}
+.sum span{display:inline-flex;gap:5px;align-items:center}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.dot.running{background:var(--run);box-shadow:0 0 6px var(--run)}
+.dot.stopped{background:#4a5060}
+.dot.failed{background:var(--err)}
+.dot.external{background:var(--ext)}
+.dot.starting{background:var(--start);animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.25}}
+.bar{display:flex;gap:10px;align-items:center;margin-bottom:6px;flex-wrap:wrap}
+input[type=search]{flex:1;min-width:200px;max-width:340px;font:inherit;font-size:13px;padding:7px 12px;border-radius:7px;border:1px solid var(--line);background:var(--panel);color:var(--fg);outline:none}
+input[type=search]:focus{border-color:var(--accent)}
+input[type=search]::placeholder{color:var(--dim)}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:1.2px;color:var(--dim);margin:26px 0 11px;font-weight:600;display:flex;align-items:center;gap:8px}
+h2 .cnt{font-size:11px;font-weight:400;opacity:.7;text-transform:none;letter-spacing:0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:13px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:15px 15px 12px;display:flex;flex-direction:column;gap:9px;transition:border-color .15s}
+.card:hover{border-color:#3a4252}
+.card.dep{opacity:.55}
+.card.failed{border-color:#5c2b30}
+.card-top{display:flex;align-items:flex-start;gap:9px}
+.card-top .name{font-weight:600;font-size:15px;flex:1;word-break:break-word}
+.chip{font-size:11px;padding:2px 7px;border-radius:20px;background:var(--panel2);border:1px solid var(--line);color:var(--dim);white-space:nowrap;font-family:ui-monospace,Menlo,monospace;flex-shrink:0}
+.chip.running{color:var(--run);border-color:#24503a}
+.chip.external{color:var(--ext);border-color:#5c4a22}
+.chip.failed{color:var(--err);border-color:#5c2b30}
+.chip.starting{color:var(--start);border-color:#264069}
+.desc{font-size:12.5px;color:var(--dim);line-height:1.5;min-height:34px}
+.warn{font-size:11.5px;color:var(--ext);background:#2a2314;border:1px solid #4a3d1c;border-radius:5px;padding:5px 8px;font-family:ui-monospace,Menlo,monospace;word-break:break-all}
+@media(prefers-color-scheme:light){.warn{background:#fdf7e6;border-color:#f0e0b0;color:#8a6d1d}}
+.err{font-size:11.5px;color:var(--err);background:#2a1618;border:1px solid #4a2429;border-radius:5px;padding:5px 8px;font-family:ui-monospace,Menlo,monospace;word-break:break-all}
+@media(prefers-color-scheme:light){.err{background:#fdecee;border-color:#f5c8cd;color:#b3282f}}
+.path{font-size:11px;color:var(--dim);font-family:ui-monospace,Menlo,monospace;word-break:break-all;opacity:.85}
+.acts{display:flex;gap:7px;flex-wrap:wrap;margin-top:2px}
+button{font:inherit;font-size:12.5px;padding:6px 13px;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--fg);cursor:pointer;transition:.13s}
+button:hover:not(:disabled){border-color:#4a5566;background:#262c38}
+@media(prefers-color-scheme:light){button:hover:not(:disabled){background:#eef0f4}}
+button:disabled{opacity:.38;cursor:default}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.primary:hover:not(:disabled){background:#3d7bf0;border-color:#3d7bf0}
+button.danger{color:var(--err);border-color:#5c2b30}
+button.danger:hover:not(:disabled){background:#2a1618}
+pre{background:#0b0d11;border:1px solid var(--line);border-radius:6px;padding:9px 11px;font:11.5px/1.5 ui-monospace,Menlo,monospace;color:#a8b2c4;max-height:210px;overflow:auto;white-space:pre-wrap;word-break:break-all;margin-top:2px}
+@media(prefers-color-scheme:light){pre{background:#1f2329;color:#c8d0dd}}
+.hide{display:none}
+.empty{color:var(--dim);font-size:13px;padding:20px 0}
+footer{margin-top:34px;padding-top:16px;border-top:1px solid var(--line);display:flex;gap:16px;font-size:12px;color:var(--dim);flex-wrap:wrap;align-items:center}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+code{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;background:var(--panel2);padding:1px 5px;border-radius:3px;border:1px solid var(--line)}
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 18px;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.35);opacity:0;transition:.22s;pointer-events:none;z-index:99;max-width:80vw}
+#toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+#toast.bad{border-color:var(--err);color:var(--err)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🧰 工具箱</h1>
+    <span class="meta" id="listen"></span>
+    <span class="spacer"></span>
+    <span class="sum" id="summary"></span>
+    <button id="btn-refresh">刷新</button>
+  </header>
+
+  <div class="bar">
+    <input type="search" id="filter" placeholder="搜工具名 / 描述 / 端口…">
+    <button id="btn-start-all">全部启动</button>
+    <button id="btn-stop-all" class="danger">全部停止</button>
+  </div>
+
+  <div id="app"></div>
+
+  <footer>
+    <span>配置：<code>~/.toolbox/config.yaml</code> · <code>tools.yaml</code></span>
+    <a href="/api/bootstrap.sh">生成换机恢复脚本</a>
+    <span id="ws"></span>
+  </footer>
+</div>
+<div id="toast"></div>
+
+<script>
+const GROUPS = [
+  ['web', '本地 Web 工具'],
+  ['mcp', 'MCP Server（挂到 AI 客户端，不由此处启动）'],
+  ['skill', '技能与插件（由外部宿主加载）'],
+  ['script', '脚本'],
+];
+const LABEL = {
+  running: '运行中', stopped: '已停止', starting: '启动中',
+  external: '外部进程', failed: '启动失败'
+};
+
+let TOOLS = [];
+let OPENED = new Set();   // 已开过的标签页，避免重复开
+
+// ── 工具函数 ────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+let toastTimer = null;
+function toast(msg, bad) {
+  const el = $('toast');
+  el.textContent = msg;
+  el.className = 'show' + (bad ? ' bad' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.className = ''; }, 2600);
+}
+
+// 用 window.open 打开工具。命名标签页：同一工具重复点不会开一堆。
+// 注意：内联 onclick 里的 open() 会命中 document.open（清空页面），
+// 所以这里全部走 addEventListener + data-action，不写内联 handler。
+function openTool(t) {
+  if (!t.url) { toast('这个工具没有入口地址', true); return; }
+  const w = window.open(t.url, 'toolbox-' + t.id);
+  if (!w) {
+    toast('浏览器拦截了新标签页，请允许 popup 或手动打开 ' + t.url, true);
+    return;
+  }
+  OPENED.add(t.id);
+  w.focus();
+}
+
+async function api(path, method) {
+  const r = await fetch(path, { method: method || 'GET' });
+  return r.json();
+}
+
+// ── 渲染 ────────────────────────────────────────────────
+function actionsFor(t) {
+  const st = t.state;
+  const live = st === 'running' || st === 'external';
+  const a = [];
+
+  if (t.group === 'mcp') {
+    a.push(['copy-mcp', '复制 MCP 配置', '']);
+  } else if (t.group === 'skill') {
+    a.push(['copy-path', '复制路径', '']);
+  } else {
+    if (live) {
+      a.push(['open', '进入', 'primary']);
+      if (st === 'running') a.push(['stop', '停止', 'danger']);
+      if (st === 'external') a.push(['kill', '清理', 'danger']);
+    } else if (t.can_start) {
+      a.push(['start', '启动', 'primary']);
+    }
+  }
+  if (t.endpoint) a.push(['open-repo', '仓库', '']);
+  if (t.can_start || t.group === 'mcp' || t.group === 'script') {
+    a.push(['log', '日志', '']);
+  }
+  return a.map(([act, label, cls]) =>
+    `<button data-id="${esc(t.id)}" data-act="${act}" class="${cls}"
+      ${st === 'starting' && act === 'start' ? 'disabled' : ''}>${label}</button>`
+  ).join('');
+}
+
+function card(t) {
+  const st = t.state;
+  const live = st === 'running' || st === 'external';
+  const warn = (t.missing && t.missing.length)
+    ? `<div class="warn">缺凭证：${t.missing.map(esc).join('、')}<br>写到 <code>~/.toolbox/config.yaml</code></div>` : '';
+  const errBox = t.err ? `<div class="err">${esc(t.err)}</div>` : '';
+  const src = (t.group === 'skill' && t.source) ? `<div class="path">${esc(t.source)}</div>` : '';
+  const dep = t.deprecated ? `<div class="warn">已废弃，功能已并入其他工具</div>` : '';
+  const chip = `<span class="chip ${st}">${LABEL[st] || st}${t.port && live ? ' · ' + t.port : ''}${t.uptime ? ' · ' + t.uptime : ''}</span>`;
+
+  return `<div class="card ${t.deprecated ? 'dep' : ''} ${st === 'failed' ? 'failed' : ''}">
+    <div class="card-top"><span class="name">${esc(t.name)}</span>${chip}</div>
+    <div class="desc">${esc(t.desc)}</div>
+    ${dep}${src}${warn}${errBox}
+    <div class="acts">${actionsFor(t)}</div>
+    <pre class="hide" data-log="${esc(t.id)}"></pre>
+  </div>`;
+}
+
+function matches(t, q) {
+  if (!q) return true;
+  const s = (t.name + ' ' + t.desc + ' ' + t.id + ' ' + (t.port || '')).toLowerCase();
+  return s.includes(q);
+}
+
+function render(data) {
+  $('listen').textContent = data.listen;
+  $('ws').textContent = data.workspace;
+  TOOLS = data.tools;
+
+  const c = {};
+  TOOLS.forEach(t => c[t.state] = (c[t.state] || 0) + 1);
+  $('summary').innerHTML = ['running', 'external', 'starting', 'failed', 'stopped']
+    .filter(k => c[k]).map(k => `<span><i class="dot ${k}"></i>${LABEL[k]} ${c[k]}</span>`).join('');
+
+  const q = $('filter').value.trim().toLowerCase();
+  let html = '';
+  let any = false;
+  for (const [g, title] of GROUPS) {
+    const items = TOOLS.filter(t => t.group === g && matches(t, q));
+    if (!items.length) continue;
+    any = true;
+    const running = items.filter(t => t.state === 'running').length;
+    html += `<h2>${title}<span class="cnt">${running ? running + ' 运行中 / ' : ''}${items.length}</span></h2>
+      <div class="grid">${items.map(card).join('')}</div>`;
+  }
+  if (!any) html = `<div class="empty">没有匹配 “${esc(q)}” 的工具</div>`;
+  $('app').innerHTML = html;
+
+  // 保持已展开的日志面板
+  document.querySelectorAll('pre[data-log]').forEach(pre => {
+    const id = pre.dataset.log;
+    if (OPENED.has('log:' + id) && pre.classList.contains('hide')) {
+      pre.classList.remove('hide');
+      refreshLog(id);
+    }
+  });
+}
+
+// ── 日志 ────────────────────────────────────────────────
+async function refreshLog(id) {
+  const pre = document.querySelector(`pre[data-log="${id}"]`);
+  if (!pre || pre.classList.contains('hide')) return;
+  const j = await api(`/api/logs?id=${encodeURIComponent(id)}&n=120`);
+  pre.textContent = (j.lines && j.lines.length) ? j.lines.join('\n') : '（暂无输出）';
+  pre.scrollTop = pre.scrollHeight;
+}
+
+function toggleLog(id) {
+  const pre = document.querySelector(`pre[data-log="${id}"]`);
+  if (!pre) return;
+  const key = 'log:' + id;
+  if (pre.classList.contains('hide')) {
+    pre.classList.remove('hide');
+    OPENED.add(key);
+    refreshLog(id);
+  } else {
+    pre.classList.add('hide');
+    OPENED.delete(key);
+  }
+}
+
+// ── 动作分发（事件委托，杜绝内联 handler 的 document.open 坑）──────
+async function handleAction(act, id) {
+  const t = TOOLS.find(x => x.id === id);
+  if (!t) return;
+
+  switch (act) {
+    case 'open':
+      openTool(t);
+      break;
+
+    case 'start': {
+      const j = await api(`/api/start?id=${encodeURIComponent(id)}`, 'POST');
+      if (!j.ok) { toast(j.error, true); return; }
+      toast('正在启动 ' + t.name + '…');
+      pollUntil(id, ['running', 'failed'], 40000);
+      break;
+    }
+
+    case 'stop': {
+      const j = await api(`/api/stop?id=${encodeURIComponent(id)}`, 'POST');
+      if (!j.ok) { toast(j.error, true); return; }
+      toast('已停止 ' + t.name);
+      setTimeout(load, 400);
+      break;
+    }
+
+    case 'kill': {
+      if (!confirm('杀掉占着这个端口的进程？\n如果是你自己 make run 起的，会被一起关掉。')) return;
+      const j = await api(`/api/kill?id=${encodeURIComponent(id)}`, 'POST');
+      if (!j.ok) { toast(j.error, true); return; }
+      toast('已清理');
+      setTimeout(load, 500);
+      break;
+    }
+
+    case 'log':
+      toggleLog(id);
+      break;
+
+    case 'copy-mcp': {
+      const cfg = { mcpServers: { [id]: {
+        command: 'uv',
+        args: ['run', '--directory', t.dir, 'python', 'server.py']
+      }}};
+      copy(JSON.stringify(cfg, null, 2), '已复制，粘到 Qoder / Cursor 的 mcpServers');
+      break;
+    }
+
+    case 'copy-path':
+      copy(t.source || t.dir, '已复制路径');
+      break;
+
+    case 'open-repo': {
+      const u = t.endpoint.replace('git@github.com:', 'https://github.com/').replace(/\.git$/, '');
+      window.open(u, '_blank', 'noopener');
+      break;
+    }
+  }
+}
+
+function copy(text, msg) {
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(() => toast(msg)).catch(() => fallbackCopy(text, msg));
+  } else {
+    fallbackCopy(text, msg);
+  }
+}
+
+function fallbackCopy(text, msg) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;opacity:0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); toast(msg); }
+  catch { toast('复制失败，手动复制：\n' + text, true); }
+  document.body.removeChild(ta);
+}
+
+// 启动后轮询，等端口真正起来再刷新，避免用户点了看不出变化
+async function pollUntil(id, states, timeout) {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    await new Promise(r => setTimeout(r, 700));
+    const d = await api('/api/tools');
+    const t = d.tools.find(x => x.id === id);
+    if (t && states.includes(t.state)) {
+      render(d);
+      if (t.state === 'running') toast(t.name + ' 已就绪');
+      if (t.state === 'failed') toast(t.name + ' 启动失败，点「日志」看原因', true);
+      return;
+    }
+  }
+  toast('等待超时，点「日志」看进度', true);
+}
+
+// ── 生命周期 ────────────────────────────────────────────
+async function load() {
+  try {
+    render(await api('/api/tools'));
+  } catch (e) {
+    $('app').innerHTML = `<div class="err">连不上工具箱后端：${esc(e.message)}<br>后端可能已退出，重新执行 <code>toolbox</code></div>`;
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  $('app').addEventListener('click', e => {
+    const btn = e.target.closest('button[data-act]');
+    if (!btn) return;
+    handleAction(btn.dataset.act, btn.dataset.id);
+  });
+
+  $('btn-refresh').addEventListener('click', load);
+
+  $('btn-start-all').addEventListener('click', async () => {
+    const idle = TOOLS.filter(t => t.group === 'web' && t.can_start &&
+      (t.state === 'stopped' || t.state === 'failed'));
+    if (!idle.length) { toast('没有可启动的工具'); return; }
+    for (const t of idle) await api(`/api/start?id=${encodeURIComponent(t.id)}`, 'POST');
+    toast('正在启动 ' + idle.length + ' 个工具…');
+    setTimeout(load, 800);
+  });
+
+  $('btn-stop-all').addEventListener('click', async () => {
+    const up = TOOLS.filter(t => t.state === 'running');
+    if (!up.length) { toast('没有运行中的工具'); return; }
+    if (!confirm('停止 ' + up.length + ' 个运行中的工具？')) return;
+    for (const t of up) await api(`/api/stop?id=${encodeURIComponent(t.id)}`, 'POST');
+    toast('已全部停止');
+    setTimeout(load, 500);
+  });
+
+  let filterTimer = null;
+  $('filter').addEventListener('input', () => {
+    clearTimeout(filterTimer);
+    filterTimer = setTimeout(() => render({ tools: TOOLS, listen: $('listen').textContent, workspace: $('ws').textContent }), 120);
+  });
+
+  load();
+  setInterval(load, 5000);
+  setInterval(() => {
+    document.querySelectorAll('pre[data-log]:not(.hide)').forEach(p => refreshLog(p.dataset.log));
+  }, 1800);
+});
+</script>
+</body>
+</html>

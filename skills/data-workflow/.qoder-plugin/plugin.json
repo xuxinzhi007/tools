@@ -1,0 +1,18 @@
+{
+  "name": "data-workflow",
+  "displayName": "data-service 开发工作台",
+  "version": "0.2.0",
+  "description": "IDE-agnostic requirement-to-commit workflow for Go/Kratos repos: requirement analysis with nine-item debt gate, impact assessment (blast radius), tech design with artifact tree, implementation guardrails, three-axis parallel change review, contract/interface test gates, quality gate, doc audit before commit, MR, on-call investigation and diagram generation. Business facts load at runtime from a configured knowledge source (config.yaml), never embedded in the skills. 中文：技能只装流程，业务事实运行时从配置的知识源读取。",
+  "author": {
+    "name": "xuxinzhi"
+  },
+  "keywords": [
+    "qoder-plugin",
+    "skill",
+    "workflow",
+    "data-service",
+    "go",
+    "kratos"
+  ],
+  "skills": "./skills/"
+}

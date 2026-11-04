@@ -1,0 +1,51 @@
+{
+  "name": "change",
+  "kind": "execute",
+  "when": "任意仓库里的一次改动，或给这个仓库定架构。不套 feature 的阶段表。data-service（Go 栈）的九项负债、proto 或状态门时改走 feature 或 hotfix。",
+  "principle": "先把决定写成一句，再改文件，再把核对命令的结果写下来。有一个没拍板的选择就停，把可原样粘贴的回复放进 run.json。",
+  "artifacts_root": "specs/<feature>/",
+  "stages": [
+    {
+      "id": 1,
+      "name": "写下决定",
+      "artifacts": [
+        "specs/<feature>/decision.md"
+      ],
+      "requires": [
+        "原话",
+        "我理解你要的是",
+        "可能理解错",
+        "本质",
+        "怎样算满足",
+        "未知"
+      ],
+      "template": "templates/decision-template.md",
+      "gate": "先按 references/scope.md 回答。decision.md 第一屏六件事：原话（一字不改）/ 我理解你要的是 / 可能理解错的地方 / 本质 / 怎样算满足 / 未知 / 这次不做。缺任一行 runner 打 GATE 并停（这是字面量门，不是语义门——它只看有没有写，不看好不好）。含糊时把歧义写进「可能理解错的地方」再 wait，别先猜。碰到契约、持久化、权限、状态或回滚就改走 feature 或 hotfix。还有待拍板时先 wait",
+      "file": "workflows/change.md"
+    },
+    {
+      "id": 2,
+      "name": "按决定改",
+      "code": true,
+      "artifacts": [
+        "按 decision.md 改文件"
+      ],
+      "gate_check": "git rev-parse --git-dir >/dev/null 2>&1 || exit 0; test -n \"$(git status --porcelain)\"",
+      "gate": "只改决定里写了的范围。gate_check 检查工作树真的动过：一个文件都没变就调 done 会被拦住。不是 git 仓时跳过这道检查（无法判定）；纯 gitignore 文件的改动是已知盲区",
+      "file": "workflows/change.md"
+    },
+    {
+      "id": 3,
+      "name": "核对",
+      "artifacts": [
+        "specs/<feature>/check.md"
+      ],
+      "requires": [
+        "exit",
+        "verify.log"
+      ],
+      "gate": "check.md 第一屏是 verify.log 的 exit 那一行，然后写验收条件是否达到、diff 有没有超出 decision.md",
+      "file": "workflows/change.md"
+    }
+  ]
+}

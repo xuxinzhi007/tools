@@ -1,0 +1,57 @@
+{
+  "title": "data-workflow 怎么装在项目里",
+  "subtitle": "只服务 data-service。会话注入和写入拦截只在 Cursor 项目安装里生效。",
+  "width": 1180,
+  "height": 820,
+  "cards": [
+    {
+      "title": "① 项目副本",
+      "sub": ".cursor/skills/data-workflow",
+      "theme": "gray",
+      "x": 50, "y": 130, "w": 320, "h": 230,
+      "items": ["install.sh 复制一份", "config.yaml 跟副本放一起", "不软链回技能仓库"]
+    },
+    {
+      "title": "② 会话注入",
+      "sub": "session-start",
+      "theme": "green",
+      "x": 430, "y": 130, "w": 320, "h": 230,
+      "items": ["新开会话就读技能", "不靠「开始开发」", "当前旧会话不会补注入"]
+    },
+    {
+      "title": "③ 入口",
+      "sub": "SKILL.md",
+      "theme": "blue",
+      "x": 810, "y": 130, "w": 320, "h": 230,
+      "items": ["一次只读一个阶段", "feature / bugfix", "hotfix / 只审不改"]
+    },
+    {
+      "title": "⑥ 知识源",
+      "sub": "config.yaml",
+      "theme": "orange",
+      "x": 50, "y": 480, "w": 320, "h": 230,
+      "items": ["路径运行时解析", "空值就问，不猜", "业务事实不写进技能"]
+    },
+    {
+      "title": "⑤ 阶段与门禁",
+      "sub": "stages/ 与 specs/",
+      "theme": "purple",
+      "x": 430, "y": 480, "w": 320, "h": 230,
+      "items": ["产物落 specs/<feature>/", "六道门没过就停", "每步结束问要不要继续"]
+    },
+    {
+      "title": "④ 写入拦截",
+      "sub": "gate-edit",
+      "theme": "red",
+      "x": 810, "y": 480, "w": 320, "h": 230,
+      "items": ["api / proto / status.go", "其它 Go 要 waiver 行", "specs/ 可以直接写"]
+    }
+  ],
+  "arrows": [
+    { "startX": 370, "startY": 245, "points": [[0, 0], [60, 0]], "label": "装进项目", "labelPos": { "x": 378, "y": 214 } },
+    { "startX": 750, "startY": 245, "points": [[0, 0], [60, 0]], "label": "注入后选型", "labelPos": { "x": 752, "y": 214 } },
+    { "startX": 970, "startY": 360, "points": [[0, 0], [0, 120]], "label": "改文件前", "labelPos": { "x": 984, "y": 400 } },
+    { "startX": 810, "startY": 595, "points": [[0, 0], [-60, 0]], "label": "没过门就停", "labelPos": { "x": 700, "y": 568 } },
+    { "startX": 430, "startY": 595, "points": [[0, 0], [-60, 0]], "label": "读知识", "labelPos": { "x": 340, "y": 568 } }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": "bash skills/data-workflow/hooks/session-start"
+      }
+    ],
+    "preToolUse": [
+      {
+        "command": "bash skills/data-workflow/hooks/gate-edit",
+        "failClosed": false
+      }
+    ],
+    "beforeShellExecution": [
+      {
+        "command": "bash skills/data-workflow/hooks/gate-edit",
+        "failClosed": false
+      }
+    ]
+  }
+}

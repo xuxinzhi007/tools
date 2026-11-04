@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 820" width="100%" height="100%">
+  <defs>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000000" flood-opacity="0.07"/>
+    </filter>
+    <filter id="red-shadow" x="-4%" y="-4%" width="108%" height="108%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="5" stdDeviation="8" flood-color="#e03131" flood-opacity="0.10"/>
+    </filter>
+    <marker id="arrow-gray" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+      <path d="M 0 1.5 L 7.5 4.5 L 0 7.5 Z" fill="#495057" />
+    </marker>
+    <marker id="arrow-red" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+      <path d="M 0 1.5 L 7.5 4.5 L 0 7.5 Z" fill="#e03131" />
+    </marker>
+    <style>
+      .title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; font-weight: 800; fill: #1e1e1e; }
+      .subtitle { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", sans-serif; font-weight: 500; fill: #495057; }
+      .card-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", sans-serif; font-weight: 700; font-size: 19px; }
+      .card-sub { font-family: "SF Mono", "Consolas", Menlo, monospace; font-size: 13px; fill: #868e96; }
+      .card-item { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", sans-serif; font-size: 14.5px; fill: #2b2b2b; }
+      .tag-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", sans-serif; font-size: 13px; font-weight: 600; fill: #495057; text-anchor: middle; }
+      .cfg-text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", sans-serif; font-size: 13px; font-weight: 700; fill: #c92a2a; text-anchor: middle; }
+    </style>
+  </defs>
+
+  <rect width="100%" height="100%" fill="#ffffff" rx="16"/>
+
+  <g transform="translate(590, 50)" text-anchor="middle">
+    <text class="title" font-size="30" y="0">data-workflow 怎么装在项目里</text>
+    <text class="subtitle" font-size="16" y="32">只服务 data-service。会话注入和写入拦截只在 Cursor 项目安装里生效。</text>
+  </g>
+
+  <!-- 卡片 -->
+  
+    <g transform="translate(50, 130)" filter="url(#shadow)">
+      <rect width="320" height="230" rx="14" fill="#f8f9fa" stroke="#868e96" stroke-width="2"/>
+      <text class="card-title" x="160" y="36" text-anchor="middle" fill="#212529">① 项目副本</text>
+      <text class="card-sub" x="160" y="56" text-anchor="middle">.cursor/skills/data-workflow</text>
+      <line x1="25" y1="72" x2="295" y2="72" stroke="#dee2e6" stroke-width="1.5" stroke-dasharray="4,4"/>
+      <g class="card-item" transform="translate(24, 102)">
+        <text y="0">• install.sh 复制一份</text>
+        <text y="28">• config.yaml 跟副本放一起</text>
+        <text y="56">• 不软链回技能仓库</text>
+      </g>
+    </g>
+
+    <g transform="translate(430, 130)" filter="url(#shadow)">
+      <rect width="320" height="230" rx="14" fill="#ebfbee" stroke="#0ca678" stroke-width="2"/>
+      <text class="card-title" x="160" y="36" text-anchor="middle" fill="#0ca678">② 会话注入</text>
+      <text class="card-sub" x="160" y="56" text-anchor="middle">session-start</text>
+      <line x1="25" y1="72" x2="295" y2="72" stroke="#b2f2bb" stroke-width="1.5" stroke-dasharray="4,4"/>
+      <g class="card-item" transform="translate(24, 102)">
+        <text y="0">• 新开会话就读技能</text>
+        <text y="28">• 不靠「开始开发」</text>
+        <text y="56">• 当前旧会话不会补注入</text>
+      </g>
+    </g>
+
+    <g transform="translate(810, 130)" filter="url(#shadow)">
+      <rect width="320" height="230" rx="14" fill="#e7f5ff" stroke="#1971c2" stroke-width="2"/>
+      <text class="card-title" x="160" y="36" text-anchor="middle" fill="#1971c2">③ 入口</text>
+      <text class="card-sub" x="160" y="56" text-anchor="middle">SKILL.md</text>
+      <line x1="25" y1="72" x2="295" y2="72" stroke="#a5d8ff" stroke-width="1.5" stroke-dasharray="4,4"/>
+      <g class="card-item" transform="translate(24, 102)">
+        <text y="0">• 一次只读一个阶段</text>
+        <text y="28">• feature / bugfix</text>
+        <text y="56">• hotfix / 只审不改</text>
+      </g>
+    </g>
+
+    <g transform="translate(50, 480)" filter="url(#shadow)">
+      <rect width="320" height="230" rx="14" fill="#fff4e6" stroke="#e8590c" stroke-width="2"/>
+      <text class="card-title" x="160" y="36" text-anchor="middle" fill="#e8590c">⑥ 知识源</text>
+      <text class="card-sub" x="160" y="56" text-anchor="middle">config.yaml</text>
+      <line x1="25" y1="72" x2="295" y2="72" stroke="#ffc078" stroke-width="1.5" stroke-dasharray="4,4"/>
+      <g class="card-item" transform="translate(24, 102)">
+        <text y="0">• 路径运行时解析</text>
+        <text y="28">• 空值就问，不猜</text>
+        <text y="56">• 业务事实不写进技能</text>
+      </g>
+    </g>
+
+    <g transform="translate(430, 480)" filter="url(#shadow)">
+      <rect width="320" height="230" rx="14" fill="#f3f0ff" stroke="#7048e8" stroke-width="2"/>
+      <text class="card-title" x="160" y="36" text-anchor="middle" fill="#7048e8">⑤ 阶段与门禁</text>
+      <text class="card-sub" x="160" y="56" text-anchor="middle">stages/ 与 specs/</text>
+      <line x1="25" y1="72" x2="295" y2="72" stroke="#d0bfff" stroke-width="1.5" stroke-dasharray="4,4"/>
+      <g class="card-item" transform="translate(24, 102)">
+        <text y="0">• 产物落 specs/&lt;feature&gt;/</text>
+        <text y="28">• 六道门没过就停</text>
+        <text y="56">• 每步结束问要不要继续</text>
+      </g>
+    </g>
+
+    <g transform="translate(810, 480)" filter="url(#shadow)">
+      <rect width="320" height="230" rx="14" fill="#fff5f5" stroke="#e03131" stroke-width="2"/>
+      <text class="card-title" x="160" y="36" text-anchor="middle" fill="#c92a2a">④ 写入拦截</text>
+      <text class="card-sub" x="160" y="56" text-anchor="middle">gate-edit</text>
+      <line x1="25" y1="72" x2="295" y2="72" stroke="#ffc9c9" stroke-width="1.5" stroke-dasharray="4,4"/>
+      <g class="card-item" transform="translate(24, 102)">
+        <text y="0">• api / proto / status.go</text>
+        <text y="28">• 其它 Go 要 waiver 行</text>
+        <text y="56">• specs/ 可以直接写</text>
+      </g>
+    </g>
+
+  <!-- 连线与标签 -->
+  
+    <g>
+      <path d="M 370 245 L 430 245" fill="none" stroke="#495057" stroke-width="2.2"  marker-end="url(#arrow-gray)"/>
+      
+      <rect x="348" y="200" width="60" height="22" rx="4" fill="#f1f3f5" />
+      <text class="tag-text" x="378" y="214" text-anchor="middle">装进项目</text>
+    </g>
+
+    <g>
+      <path d="M 750 245 L 810 245" fill="none" stroke="#495057" stroke-width="2.2"  marker-end="url(#arrow-gray)"/>
+      
+      <rect x="722" y="200" width="60" height="22" rx="4" fill="#f1f3f5" />
+      <text class="tag-text" x="752" y="214" text-anchor="middle">注入后选型</text>
+    </g>
+
+    <g>
+      <path d="M 970 360 L 970 480" fill="none" stroke="#495057" stroke-width="2.2"  marker-end="url(#arrow-gray)"/>
+      
+      <rect x="954" y="386" width="60" height="22" rx="4" fill="#f1f3f5" />
+      <text class="tag-text" x="984" y="400" text-anchor="middle">改文件前</text>
+    </g>
+
+    <g>
+      <path d="M 810 595 L 750 595" fill="none" stroke="#495057" stroke-width="2.2"  marker-end="url(#arrow-gray)"/>
+      
+      <rect x="670" y="554" width="60" height="22" rx="4" fill="#f1f3f5" />
+      <text class="tag-text" x="700" y="568" text-anchor="middle">没过门就停</text>
+    </g>
+
+    <g>
+      <path d="M 430 595 L 370 595" fill="none" stroke="#495057" stroke-width="2.2"  marker-end="url(#arrow-gray)"/>
+      
+      <rect x="310" y="554" width="60" height="22" rx="4" fill="#f1f3f5" />
+      <text class="tag-text" x="340" y="568" text-anchor="middle">读知识</text>
+    </g>
+
+  <!-- 配置驱动底框 -->
+  
+</svg>

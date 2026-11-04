@@ -1,0 +1,335 @@
+[
+  {
+    "id": "tag-service-project",
+    "name": "标签服务 (Tag Service)",
+    "baseUrl": "http://127.0.0.1:8000",
+    "description": "data-service 标签管理模块接口测试",
+    "headers": {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhdXQiOiJURU5BTlRfQURNSU4iLCJjaWQiOiIiLCJlbWwiOiJ4dXhpbnpoaUB4MnJvYm90LmNvbSIsImV4cCI6MTc3NzYxODI4MSwiaWF0IjoxNzc3MDEzNDgxLCJsdWlkIjoiUzY4NDM5IiwibmJmIjoxNzc3MDEzNDgxLCJyb2MiOm51bGwsInN1YiI6Inh1eGluemhpQHgycm9ib3QiLCJ0aWQiOjg4ODg4OCwidG4iOiJ4MnJvYm90IiwidHJuIjoi6Ieq5Y-Y6YePIiwidWlkIjo0MzksInVybiI6IuW-kOaWsOW_lyJ9.4lbuLWiRWc2V-Xawg7Z5-QTMgNAL3u4xyK1iLzX0VoiV3EwW70-35Mesq283jj621XMvv1e_QPrVkI9WR2sLAQ",
+      "x-xr-auth-uid": "439",
+      "x-xr-auth-tid": "888888",
+      "x-xr-auth-type": "jwt",
+      "x-xr-auth-sub": "xuxinzhi11@x2robot"
+    },
+    "apis": [
+      {
+        "id": "api-tag-list",
+        "name": "查询标签列表",
+        "method": "POST",
+        "path": "/api/tag/v1/list",
+        "description": "分页查询标签列表，支持按层级、状态、名称等筛选",
+        "scenarios": [
+          {
+            "id": "sc-list-all",
+            "name": "正常查询全部标签",
+            "description": "不传筛选条件，查询第一页默认数量",
+            "enabled": true,
+            "variables": {},
+            "headers": {},
+            "body": {
+              "page": 1,
+              "page_size": 20
+            },
+            "assertions": [
+              { "type": "status_code", "value": 200 },
+              { "type": "exists", "path": "$.tags" },
+              { "type": "exists", "path": "$.total" }
+            ]
+          },
+          {
+            "id": "sc-list-level1",
+            "name": "只查询一级标签",
+            "description": "level=1 筛选一级标签",
+            "enabled": true,
+            "variables": {},
+            "headers": {},
+            "body": {
+              "level": 1,
+              "page": 1,
+              "page_size": 50
+            },
+            "assertions": [
+              { "type": "status_code", "value": 200 },
+              { "type": "exists", "path": "$.tags" }
+            ]
+          },
+          {
+            "id": "sc-list-by-name",
+            "name": "按名称模糊搜索",
+            "description": "tag_name 模糊匹配",
+            "enabled": true,
+            "variables": {},
+            "headers": {},
+            "body": {
+              "tag_name": "测试",
+              "page": 1,
+              "page_size": 20
+            },
+            "assertions": [
+              { "type": "status_code", "value": 200 },
+              { "type": "exists", "path": "$.tags" }
+            ]
+          },
+          {
+            "id": "sc-list-as-tree",
+            "name": "树形结构查询",
+            "description": "as_tree=true 返回树形结构",
+            "enabled": true,
+            "variables": {},
+            "headers": {},
+            "body": {
+              "as_tree": true,
+              "page": 1,
+              "page_size": 100
+            },
+            "assertions": [
+              { "type": "status_code", "value": 200 },
+              { "type": "exists", "path": "$.tags" }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "api-tag-create",
+        "name": "创建标签",
+        "method": "POST",
+        "path": "/api/tag/v1/create",
+        "description": "创建新标签",
+        "scenarios": [
+          {
+            "id": "sc-create-normal",
+            "name": "正常创建一级标签",
+            "description": "必填字段完整，创建一级标签",
+            "enabled": true,
+            "variables": {},
+            "headers": {},
+            "body": {
+              "tag_name": "测试一级标签",
+              "tag_code": "test_l1_tag",
+              "description": "自动化测试创建的一级标签",
+              "color": "#1890ff",
+              "level": 1,
+              "status": 2
+            },
+            "assertions": [
+              { "type": "status_code", "value": 200 },
+              { "type": "json_path", "path": "$.tag.tag_name", "value": "测试一级标签" },
+              { "type": "json_path", "path": "$.tag.level", "value": 1 }
+            ]
+          },
+          {
+            "id": "sc-create-l2",
+            "name": "正常创建二级标签",
+            "description": "指定 parent_id 创建二级子标签",
+            "enabled": true,
+            "variables": {},
+            "headers": {},
+            "body": {
+              "tag_name": "测试二级标签",
+              "tag_code": "test_l2_tag",
+              "description": "自动化测试创建的二级标签",
+              "parent_id": "",
+              "color": "#52c41a",
+              "level": 2,
+              "status": 2
+            },
+            "assertions": [
+              { "type": "status_code", "value": 200 },
+              { "type": "json_path", "path": "$.tag.level", "value": 2 }
+            ]
+          },
+          {
+            "id": "sc-create-name-too-short",
+            "name": "标签名称过短",
+            "description": "名称少于2个字符，应返回参数错误",
+            "enabled": true,
+            "variables": {},
+            "headers": {},
+            "body": {
+              "tag_name": "A",
+              "level": 1
+            },
+            "assertions": [
+              { "type": "status_code", "value": 400 }
+            ]
+          },
+          {
+            "id": "sc-create-duplicate-code",
+            "name": "重复的 tag_code",
+            "description": "tag_code 已存在，应返回冲突错误",
+            "enabled": true,
+            "variables": {},
+            "headers": {},
+            "body": {
+              "tag_name": "重复code的标签",
+              "tag_code": "test_l1_tag",
+              "level": 1
+            },
+            "assertions": [
+              { "type": "status_code", "value": 409 },
+              { "type": "json_path", "path": "$.reason", "value": "TAG_ALREADY_EXISTS" }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "api-tag-update",
+        "name": "更新标签",
+        "method": "POST",
+        "path": "/api/tag/v1/update",
+        "description": "更新标签信息",
+        "scenarios": [
+          {
+            "id": "sc-update-name",
+            "name": "正常修改标签名称",
+            "description": "修改标签名称和描述",
+            "enabled": true,
+            "variables": {},
+            "headers": {},
+            "body": {
+              "tag_id": "REPLACE_WITH_REAL_ID",
+              "tag_name": "修改后的标签名",
+              "description": "修改后的描述"
+            },
+            "assertions": [
+              { "type": "status_code", "value": 200 },
+              { "type": "json_path", "path": "$.tag.tag_name", "value": "修改后的标签名" }
+            ]
+          },
+          {
+            "id": "sc-update-status",
+            "name": "禁用标签",
+            "description": "将标签状态改为禁用",
+            "enabled": true,
+            "variables": {},
+            "headers": {},
+            "body": {
+              "tag_id": "REPLACE_WITH_REAL_ID",
+              "status": 1
+            },
+            "assertions": [
+              { "type": "status_code", "value": 200 },
+              { "type": "json_path", "path": "$.tag.status", "value": 1 }
+            ]
+          },
+          {
+            "id": "sc-update-not-exist",
+            "name": "更新不存在的标签",
+            "description": "tag_id 不存在，返回 404",
+            "enabled": true,
+            "variables": {},
+            "headers": {},
+            "body": {
+              "tag_id": "tag-nonexistent12345",
+              "tag_name": "测试"
+            },
+            "assertions": [
+              { "type": "status_code", "value": 404 },
+              { "type": "json_path", "path": "$.reason", "value": "TAG_NOT_FOUND" }
+            ]
+          },
+          {
+            "id": "sc-update-fixed-tag",
+            "name": "修改固定标签",
+            "description": "固定标签不可修改，返回业务错误",
+            "enabled": true,
+            "variables": {},
+            "headers": {},
+            "body": {
+              "tag_id": "REPLACE_WITH_FIXED_TAG_ID",
+              "tag_name": "尝试修改固定标签"
+            },
+            "assertions": [
+              { "type": "status_code", "value": 400 },
+              { "type": "json_path", "path": "$.reason", "value": "TAG_JOB_LABEL_FIXED_NOT_MODIFIABLE" }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "api-tag-delete",
+        "name": "删除标签",
+        "method": "POST",
+        "path": "/api/tag/v1/delete",
+        "description": "删除标签",
+        "scenarios": [
+          {
+            "id": "sc-delete-normal",
+            "name": "正常删除普通标签",
+            "description": "删除一个没有关联的普通标签",
+            "enabled": true,
+            "variables": {},
+            "headers": {},
+            "body": {
+              "tag_id": "REPLACE_WITH_REAL_ID"
+            },
+            "assertions": [
+              { "type": "status_code", "value": 200 }
+            ]
+          },
+          {
+            "id": "sc-delete-not-exist",
+            "name": "删除不存在的标签",
+            "description": "tag_id 不存在，返回 404",
+            "enabled": true,
+            "variables": {},
+            "headers": {},
+            "body": {
+              "tag_id": "tag-nonexistent12345"
+            },
+            "assertions": [
+              { "type": "status_code", "value": 404 },
+              { "type": "json_path", "path": "$.reason", "value": "TAG_NOT_FOUND" }
+            ]
+          },
+          {
+            "id": "sc-delete-fixed-tag",
+            "name": "删除固定标签",
+            "description": "固定标签不可删除，返回业务错误",
+            "enabled": true,
+            "variables": {},
+            "headers": {},
+            "body": {
+              "tag_id": "REPLACE_WITH_FIXED_TAG_ID"
+            },
+            "assertions": [
+              { "type": "status_code", "value": 400 },
+              { "type": "json_path", "path": "$.reason", "value": "TAG_JOB_LABEL_FIXED_NOT_DELETABLE" }
+            ]
+          },
+          {
+            "id": "sc-delete-has-children",
+            "name": "删除有子标签的父标签",
+            "description": "存在二级子标签时，一级标签不可删除",
+            "enabled": true,
+            "variables": {},
+            "headers": {},
+            "body": {
+              "tag_id": "REPLACE_WITH_PARENT_ID"
+            },
+            "assertions": [
+              { "type": "status_code", "value": 400 },
+              { "type": "json_path", "path": "$.reason", "value": "TAG_HAS_CHILD_TAGS" }
+            ]
+          },
+          {
+            "id": "sc-delete-has-associated-tasks",
+            "name": "删除有关联任务的标签",
+            "description": "标签已关联任务，不可删除",
+            "enabled": false,
+            "variables": {},
+            "headers": {},
+            "body": {
+              "tag_id": "REPLACE_WITH_USED_TAG_ID"
+            },
+            "assertions": [
+              { "type": "status_code", "value": 400 },
+              { "type": "json_path", "path": "$.reason", "value": "TAG_HAS_ASSOCIATED_TASKS" }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+]

@@ -1,0 +1,13 @@
+runs/
+.DS_Store
+config.yaml
+*.png
+!assets/*.png
+.idea
+.vscode
+# 跑 verify（check_runner）会生成
+__pycache__/
+
+# data-workflow 一次运行的产物：run.json / decision.md / check.md / verify.log。
+# 本机工作记忆，不进版本库（与 install.sh 给业务仓库写的规则一致）。
+specs/

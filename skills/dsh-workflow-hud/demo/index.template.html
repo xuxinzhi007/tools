@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="dark" />
+<title>Cyber Web Crawler · data-workflow gate observer</title>
+<style>
+/*__CSS__*/
+</style>
+</head>
+<body>
+<div id="arena" class="arena">
+  <canvas id="web" aria-hidden="true"></canvas>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32" focusable="false">
+          <path d="M3 17h6l3-9 6 16 3-9h8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="29" cy="17" r="2.2" fill="currentColor"/>
+        </svg>
+      </span>
+      <span class="brand-text">
+        <b>CYBER WEB CRAWLER</b>
+        <small>data-workflow · gate observer</small>
+      </span>
+    </div>
+    <div class="topbar-meta">
+      <span id="run-chip" class="chip">mock stream</span>
+      <span id="state-pill" class="state-pill" data-state="idle"><i aria-hidden="true"></i><span>待命</span></span>
+      <span id="clock" class="clock">00:00.0</span>
+    </div>
+  </header>
+
+  <section class="track-shell" aria-label="工作流阶段拓扑">
+    <div class="track-head">
+      <span>MAIN CHAIN</span>
+      <span>阶段拓扑 / 门禁轴</span>
+    </div>
+    <div id="track" class="track" role="list"></div>
+  </section>
+
+  <main class="board">
+    <aside class="column column-left">
+      <section class="panel run-panel">
+        <div class="panel-head"><span>RUN</span><span class="panel-tag">change</span></div>
+        <div class="run-feature">cyber-gate</div>
+        <p class="run-raw">把门禁状态画成一张会呼吸的网</p>
+        <div class="run-meta">
+          <span>workflow_next.py</span>
+          <span>specs/&lt;feature&gt;/</span>
+        </div>
+      </section>
+
+      <section id="gate-card" class="panel gate-card" data-state="idle">
+        <div class="gate-top">
+          <span id="gate-code" class="gate-code">—</span>
+          <span id="gate-state" class="gate-state">待命</span>
+        </div>
+        <div id="gate-title" class="gate-title">等待运行</div>
+        <div id="gate-hint" class="gate-hint">门禁状态会在这里展开；触手只锁定当前错误。</div>
+        <div id="missing-wrap" class="missing-wrap"></div>
+      </section>
+
+      <section id="verify-card" class="panel verify-card">
+        <div class="panel-head">
+          <span>QUALITY GATE</span>
+          <span id="verify-result" class="verify-result is-running">running</span>
+        </div>
+        <div id="verify-cmd" class="verify-cmd"></div>
+        <div id="verify-lines" class="verify-lines"></div>
+      </section>
+    </aside>
+
+    <div class="column-center" aria-hidden="true">
+      <div class="center-mark">
+        <span>MASCOT ROOT</span>
+        <i></i>
+        <small>6 tentacles · verlet physics</small>
+      </div>
+    </div>
+
+    <aside class="column column-right">
+      <section class="panel metrics">
+        <div class="panel-head"><span>PHYSICS</span><span>telemetry</span></div>
+        <div class="metric">
+          <div class="metric-label"><span>STRESS</span><b id="stress-val">0.00</b></div>
+          <div class="metric-bar"><i id="stress-bar" data-level="low"></i></div>
+        </div>
+        <div class="metric">
+          <div class="metric-label"><span>URGENCY</span><b id="urgency-val">0.00</b></div>
+          <div class="metric-bar"><i id="urgency-bar" data-level="low"></i></div>
+        </div>
+        <div class="metric-grid">
+          <div><span>TIMESCALE</span><b id="tick-val">1.00×</b></div>
+          <div><span>TREMOR</span><b id="tremor-val">0.40</b></div>
+        </div>
+      </section>
+
+      <section class="panel log-panel">
+        <div class="panel-head"><span>LIVE BUS</span><span>mock stream</span></div>
+        <div id="log" class="log" role="log" aria-live="polite"></div>
+      </section>
+    </aside>
+  </main>
+
+  <footer class="dock">
+    <div class="controls">
+      <button id="btn-pause" type="button">暂停</button>
+      <button id="btn-replay" type="button">重放</button>
+      <button id="btn-mode" type="button">切到 RED</button>
+      <button id="btn-speed" type="button">速度 1×</button>
+    </div>
+    <div id="fault" class="fault" hidden></div>
+    <div class="attribution">
+      角色立绘：YunYueSama / codex-deepseek-pet（大肥鱼项目署名许可 1.0）。本地演示用途，不代表 DeepSeek 官方。
+    </div>
+  </footer>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  window.__CW_VERSION__ = '__VERSION__';
+  window.__CW_BUILT_AT__ = '__BUILT_AT__';
+  window.__CW_ASSET__ = '__PET_DATA_URL__';
+
+/*__CORE__*/
+
+/*__SCENE__*/
+
+})();
+</script>
+</body>
+</html>

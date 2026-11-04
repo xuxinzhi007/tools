@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DataTest · data-service 接口测试与日志 SQL 监控</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 26 26'%3E%3Crect width='26' height='26' rx='7' fill='%233670e0'/%3E%3Cpath d='M8 9.5l3.4 3.5L8 16.5' stroke='%23fff' stroke-width='2.2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cline x1='14' y1='16.5' x2='18.5' y2='16.5' stroke='%23fff' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E">
+</head>
+<body>
+  <!-- Global App Header -->
+  <header class="app-header">
+    <div class="logo-area">
+      <span class="logo-mark" aria-hidden="true">
+        <svg width="26" height="26" viewBox="0 0 26 26"><rect width="26" height="26" rx="7" fill="var(--primary)"/><path d="M8 9.5l3.4 3.5L8 16.5" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><line x1="14" y1="16.5" x2="18.5" y2="16.5" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </span>
+      <div class="logo-text">
+        <span class="app-title">DataTest</span>
+        <span class="app-subtitle">data-service · 接口测试 / 日志 SQL 监控</span>
+      </div>
+    </div>
+
+    <div class="header-center">
+      <!-- Mode Pills -->
+      <div class="mode-pills">
+        <div class="mode-pill active" id="pill-api" onclick="switchView('api')">接口测试</div>
+        <div class="mode-pill" id="pill-logs" onclick="switchView('logs')">日志监控</div>
+        <div class="mode-pill" id="pill-split" onclick="switchView('split')">分屏联调</div>
+      </div>
+
+      <!-- Environment Selector -->
+      <div class="env-selector">
+        <span>环境</span>
+        <select id="env-select" onchange="changeEnvironment()">
+          <option value="local">Local · 127.0.0.1:8005</option>
+          <option value="dev">Dev · dev-api.x2robot.com</option>
+          <option value="test">Test · test-api.x2robot.com</option>
+          <option value="custom">Custom · 自定义</option>
+        </select>
+        <input type="text" id="target-base-url" placeholder="http://127.0.0.1:8005" onchange="updateBaseURL()">
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <button class="btn btn-secondary btn-sm" onclick="openAuthModal()" title="设置默认 Authorization, Tenant-ID 等">
+        全局认证
+      </button>
+      <button class="btn btn-secondary btn-sm" onclick="reloadOpenAPI()" title="重新加载 make api 生成的 openapi.yaml">
+        刷新 API (<span id="api-count-badge">0</span>)
+      </button>
+      <button class="btn btn-secondary btn-sm" onclick="openSlowSQLModal()" title="查看最慢 SQL 排行">
+        慢SQL统计
+      </button>
+      <button class="btn btn-secondary btn-sm" onclick="openRemoteLogModal()" title="配置 Dev / Test 远端云日志流">
+        远端日志
+      </button>
+      <button class="btn btn-secondary btn-sm" id="btn-theme-toggle" onclick="toggleTheme()" title="切换明亮/暗色主题">
+        切换亮色
+      </button>
+      <div id="ws-indicator" class="ws-badge ok" title="WebSocket 实时日志连接状态">
+        日志流已连接
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main-content">
+    <!-- View 1: API Tester View -->
+    <div id="api-view" class="view-container">
+      <!-- Left Sidebar: Endpoints Tree -->
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <div class="search-box">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
+            <input type="text" id="api-search-input" placeholder="搜索接口路径、描述或方法..." oninput="filterEndpoints()">
+          </div>
+          <div class="method-filters">
+            <button class="method-filter-btn active" data-method="ALL" onclick="filterMethod('ALL')">全部</button>
+            <button class="method-filter-btn" data-method="GET" onclick="filterMethod('GET')">GET</button>
+            <button class="method-filter-btn" data-method="POST" onclick="filterMethod('POST')">POST</button>
+            <button class="method-filter-btn" data-method="PUT" onclick="filterMethod('PUT')">PUT</button>
+            <button class="method-filter-btn" data-method="DELETE" onclick="filterMethod('DELETE')">DEL</button>
+          </div>
+        </div>
+
+        <div class="sidebar-content" id="endpoint-tree-container">
+          <!-- Tag groups and endpoints rendered by JS -->
+        </div>
+      </aside>
+
+      <!-- Center & Right: Request Builder & Response Pane -->
+      <section class="api-tester-main">
+        <!-- Request URL Bar -->
+        <div class="request-bar">
+          <select id="req-method-select" title="HTTP 方法">
+            <option value="GET">GET</option>
+            <option value="POST">POST</option>
+            <option value="PUT">PUT</option>
+            <option value="DELETE">DELETE</option>
+            <option value="PATCH">PATCH</option>
+          </select>
+          <div class="url-input-group">
+            <span class="url-base" id="req-url-base">http://127.0.0.1:8005</span>
+            <div class="url-prefix-box" id="url-prefix-box" title="微服务网关路由前缀 (如 /core)，在 dev/test 自动填充，亦可在此直接修改">
+              <span class="url-prefix-label">前缀</span>
+              <input type="text" class="url-prefix-input" id="req-prefix-input" value="" placeholder="/core" oninput="onPrefixChange(this.value)">
+            </div>
+            <input type="text" class="url-input" id="req-path-input" placeholder="/api/...">
+          </div>
+          <button class="btn btn-primary" id="btn-send-request" onclick="sendAPIRequest()" style="padding: 8px 20px; font-weight:600;">
+            发送请求 <span class="kbd-hint">Ctrl+↵</span>
+          </button>
+        </div>
+
+        <!-- API Description Bar -->
+        <div class="api-desc-bar">
+          <div style="min-width:0; overflow:hidden;">
+            <span id="active-op-id" style="font-weight:600; color:var(--text-primary); margin-right:8px;">未选择接口</span>
+            <span id="active-op-desc" style="color:var(--text-muted);">从左侧列表中选择一个接口开始测试</span>
+          </div>
+          <div class="toolbar-group">
+            <button class="btn btn-secondary btn-sm" id="btn-copy-req-logs" onclick="copyRequestLogs()" style="display:none;" title="一键复制本次请求关联的所有日志与 SQL 到剪贴板">复制本次请求日志</button>
+            <button class="btn btn-secondary btn-sm" onclick="copyCurlCommand()">复制 cURL</button>
+            <button class="btn btn-secondary btn-sm" onclick="openHistoryModal()">测试历史</button>
+          </div>
+        </div>
+
+        <!-- Split Pane: Request on Left, Response on Right -->
+        <div class="request-response-split">
+          <!-- Left: Request Details -->
+          <div class="request-pane">
+            <div class="tab-nav">
+              <div class="tab-btn active" id="tab-btn-body" onclick="switchReqTab('body')">请求体 Body</div>
+              <div class="tab-btn" id="tab-btn-params" onclick="switchReqTab('params')">参数 Params</div>
+              <div class="tab-btn" id="tab-btn-headers" onclick="switchReqTab('headers')">请求头 Headers</div>
+            </div>
+
+            <!-- Tab: Body -->
+            <div class="tab-content" id="req-tab-body">
+              <div class="code-editor-area">
+                <div class="editor-toolbar">
+                  <span class="hint">JSON 格式 Payload</span>
+                  <div class="toolbar-group">
+                    <button class="btn btn-secondary btn-sm" onclick="applyMockBody()">Schema Mock 填充</button>
+                    <button class="btn btn-secondary btn-sm" onclick="formatReqBody()">格式化 JSON</button>
+                    <button class="btn btn-secondary btn-sm" onclick="clearReqBody()">清空</button>
+                  </div>
+                </div>
+                <textarea class="json-textarea" id="req-body-editor" placeholder="{ }"></textarea>
+              </div>
+            </div>
+
+            <!-- Tab: Params -->
+            <div class="tab-content" id="req-tab-params" style="display:none;">
+              <div id="path-params-area" style="margin-bottom:14px; display:none;">
+                <div class="group-title">路径变量 (Path Variables)</div>
+                <table class="param-table">
+                  <thead><tr><th>变量名</th><th>类型</th><th>值</th></tr></thead>
+                  <tbody id="path-params-body"></tbody>
+                </table>
+              </div>
+
+              <div>
+                <div class="group-title">查询参数 (Query Parameters)</div>
+                <table class="param-table">
+                  <thead><tr><th>参数名</th><th>类型</th><th>必填</th><th>说明</th><th>值</th></tr></thead>
+                  <tbody id="query-params-body">
+                    <tr><td colspan="5" class="empty-state">此接口无 Query 参数</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Tab: Headers -->
+            <div class="tab-content" id="req-tab-headers" style="display:none;">
+              <table class="param-table">
+                <thead><tr><th>Header Name</th><th>Header Value</th><th>操作</th></tr></thead>
+                <tbody id="custom-headers-body">
+                  <!-- Rendered by JS -->
+                </tbody>
+              </table>
+              <button class="btn btn-secondary btn-sm" style="margin-top:10px;" onclick="addHeaderRow()">+ 添加请求头</button>
+            </div>
+          </div>
+
+          <!-- Right: Response Details -->
+          <div class="response-pane">
+            <div class="tab-nav">
+              <div class="tab-btn active" id="tab-btn-resp-body" onclick="switchRespTab('body')">响应体 Body</div>
+              <div class="tab-btn" id="tab-btn-resp-headers" onclick="switchRespTab('headers')">响应头 Headers</div>
+              <div class="tab-btn" id="tab-btn-resp-sql" onclick="switchRespTab('sql')">SQL &amp; 日志 (<span id="resp-sql-count">0</span>)</div>
+              <div class="tab-btn" id="tab-btn-resp-biz" onclick="switchRespTab('biz')" style="display:none;">业务状态</div>
+            </div>
+
+            <!-- Response Status Bar -->
+            <div class="response-status-bar" id="response-status-bar" style="display:none;">
+              <span class="status-badge" id="resp-badge-status">200 OK</span>
+              <span class="status-badge biz-badge-click" id="resp-badge-biz-code" style="display:none; cursor:pointer;" onclick="switchRespTab('biz')" title="点击查看完整业务状态详情">业务状态: 0</span>
+              <span class="meta">耗时 <b id="resp-badge-time">0 ms</b></span>
+              <span class="meta">大小 <b id="resp-badge-size">0 B</b></span>
+            </div>
+
+            <div class="tab-content" id="resp-tab-body" style="display:flex; flex-direction:column; padding:12px;">
+              <!-- Response Toolbar -->
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-shrink:0; flex-wrap:wrap; gap:6px;">
+                <div class="toolbar-group">
+                  <div class="mode-pills" style="padding:2px;">
+                    <div class="mode-pill active" id="pill-resp-pretty" onclick="toggleRespFormat('pretty')">美化</div>
+                    <div class="mode-pill" id="pill-resp-raw" onclick="toggleRespFormat('raw')">原始</div>
+                  </div>
+
+                  <!-- Data Scope Switch -->
+                  <div class="mode-pills" id="resp-data-scope-pills" style="display:none; padding:2px;">
+                    <div class="mode-pill active" id="pill-scope-data" onclick="toggleDataScope('data')" title="直接查看核心业务 data 数据">仅看 data</div>
+                    <div class="mode-pill" id="pill-scope-full" onclick="toggleDataScope('full')" title="查看完整响应结构 (含 code, data 包装)">完整响应</div>
+                  </div>
+
+                  <button class="btn btn-secondary btn-sm" id="btn-collapse-all" onclick="collapseAllJson()" title="折叠所有对象与数组">折叠全部</button>
+                  <button class="btn btn-secondary btn-sm" id="btn-expand-all" onclick="expandAllJson()" title="展开所有节点">展开全部</button>
+                </div>
+                <div class="toolbar-group">
+                  <div class="search-box" style="width:150px;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
+                    <input type="text" id="resp-search-input" placeholder="在响应中搜索..." oninput="onRespSearchChange(this.value)">
+                  </div>
+                  <button class="btn btn-secondary btn-sm" id="btn-copy-data" onclick="copyDataPayload()" style="display:none;" title="一键复制 data 下的核心业务 JSON">复制 data</button>
+                  <button class="btn btn-secondary btn-sm" onclick="copyResponseBody()">复制响应</button>
+                </div>
+              </div>
+
+              <!-- Container for Pretty JSON Tree and Raw Pre -->
+              <div id="response-viewer-wrapper" style="flex:1; overflow:auto; border-radius:var(--radius-s); background:var(--bg-code);">
+                <div id="response-pretty-container" class="json-tree-container" style="padding:12px;">
+                  <div class="empty-state">点击上方「发送请求」按钮测试接口</div>
+                </div>
+                <pre class="response-body-pre" id="response-body-content" style="display:none; border:none; padding:12px; margin:0; height:100%;"></pre>
+              </div>
+            </div>
+
+            <div class="tab-content" id="resp-tab-headers" style="display:none;">
+              <table class="param-table">
+                <thead><tr><th>Header</th><th>Value</th></tr></thead>
+                <tbody id="response-headers-table">
+                  <tr><td colspan="2" class="empty-state">暂无响应头</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="tab-content" id="resp-tab-biz" style="display:none;">
+              <!-- 业务状态完整详情：由 JS 动态渲染 -->
+              <div id="resp-biz-detail"></div>
+            </div>
+
+            <div class="tab-content" id="resp-tab-sql" style="display:none; padding:8px;">
+              <div id="resp-related-logs" style="font-family:var(--font-mono); font-size:11.5px;">
+                <div class="empty-state">发送请求后将通过 x-trace-id 自动关联并展示该请求触发的 SQL 与服务端日志</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- View 2: Logs & SQL Monitor View -->
+    <div id="log-view" class="log-monitor-container" style="display:none;">
+      <!-- Toolbar -->
+      <div class="log-toolbar">
+        <!-- Remote history search bar (dev/test/prod only) -->
+        <div class="remote-search-bar" id="remote-search-bar" style="display:none;">
+          <span class="remote-search-label">历史搜索</span>
+          <select id="remote-search-time-range" class="remote-search-select" title="历史搜索时间窗口，搜索后实时日志继续追加在结果尾部" onchange="onRemoteSearchRangeChange()">
+            <option value="15m" selected>最近 15 分钟</option>
+            <option value="1h">最近 1 小时</option>
+            <option value="24h">最近 24 小时</option>
+            <option value="7d">最近 7 天</option>
+            <option value="custom">自定义范围</option>
+          </select>
+          <input type="datetime-local" id="remote-search-start" class="remote-search-select remote-search-datetime" style="display:none;" title="自定义范围开始时间" onchange="validateRemoteSearchRange()">
+          <span id="remote-search-range-sep" style="display:none; color:var(--text-secondary); font-size:11px;">至</span>
+          <input type="datetime-local" id="remote-search-end" class="remote-search-select remote-search-datetime" style="display:none;" title="自定义范围结束时间" onchange="validateRemoteSearchRange()">
+          <select id="remote-search-mode" class="remote-search-select" title="关键词模式原样匹配；SLS 模式将输入内容按 SLS 查询语法透传">
+            <option value="keyword" selected>关键词</option>
+            <option value="sls">SLS 语法</option>
+          </select>
+          <input type="text" id="remote-search-input" class="remote-search-input" placeholder="输入关键词或 SLS 语法 (如 job-xxx and DispatchJob)，留空拉取全部" onkeydown="if(event.key==='Enter') executeRemoteSearch()">
+          <button class="btn btn-primary btn-sm" id="btn-remote-search" onclick="executeRemoteSearch()">搜索</button>
+        </div>
+
+        <div class="log-filters">
+          <!-- Preset filter chips -->
+          <div class="filter-chip active" id="chip-all" onclick="setLogPreset('all')">全部日志</div>
+          <div class="filter-chip" id="chip-sql" onclick="setLogPreset('sql')">仅看 SQL</div>
+          <div class="filter-chip slow-chip" id="chip-slow" onclick="setLogPreset('slow')">慢 SQL 告警</div>
+          <div class="filter-chip" id="chip-error" onclick="setLogPreset('error')">错误日志</div>
+
+          <!-- Log Level Chips -->
+          <div class="toolbar-divider"></div>
+          <div class="filter-chip" id="chip-lvl-debug" onclick="toggleLevel('DEBUG')">DEBUG</div>
+          <div class="filter-chip" id="chip-lvl-info" onclick="toggleLevel('INFO')">INFO</div>
+          <div class="filter-chip" id="chip-lvl-warn" onclick="toggleLevel('WARN')">WARN</div>
+          <div class="filter-chip" id="chip-lvl-error" onclick="toggleLevel('ERROR')">ERROR</div>
+
+          <!-- Log Source Selector & Status -->
+          <div class="toolbar-divider"></div>
+          <div class="log-source-box">
+            <span>来源</span>
+            <select id="log-source-select" class="log-source-select" onchange="changeLogSource()">
+              <option value="auto">自动 (跟随环境)</option>
+              <option value="local">本地文件 (app.log)</option>
+              <option value="dev">Dev 云端日志 (Workflow)</option>
+              <option value="test">Test 云端日志 (Workflow)</option>
+              <option value="prod">Prod 生产日志 (Workflow)</option>
+            </select>
+            <button class="btn btn-secondary btn-sm" style="padding:2px 8px;" onclick="openRemoteLogModal()" title="配置远端云日志 Token 与参数">配置</button>
+            <span id="remote-log-status-badge" class="remote-status-badge remote-status-active" onclick="openRemoteLogModal()" title="点击查看远端日志连接详情">本地文件</span>
+          </div>
+        </div>
+
+        <div class="toolbar-group">
+          <!-- Keyword Search -->
+          <div class="search-box" style="width:200px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
+            <input type="text" id="log-search-input" placeholder="搜索日志 / SQL / Caller / Pod..." oninput="onLogSearchChange()">
+          </div>
+
+          <!-- Auto scroll lock toggle -->
+          <button class="btn btn-secondary btn-sm" id="btn-toggle-scroll" onclick="toggleAutoScroll()">
+            自动滚动: 开启
+          </button>
+          <button class="btn btn-secondary btn-sm" onclick="clearLogs()">
+            清空
+          </button>
+          <button class="btn btn-secondary btn-sm" onclick="generateMockLogs()">
+            模拟测试日志与慢SQL
+          </button>
+        </div>
+      </div>
+
+      <!-- SQL Stats KPI Bar -->
+      <div class="sql-stats-bar">
+        <div class="stat-item">
+          <span class="stat-label">总 SQL 次数</span>
+          <span class="stat-value" id="stat-total-sql">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">慢 SQL (&gt;<span id="stat-threshold-val">200ms</span>)</span>
+          <span class="stat-value stat-slow" id="stat-slow-sql">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">平均耗时</span>
+          <span class="stat-value" id="stat-avg-latency">0.00 ms</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">最慢耗时</span>
+          <span class="stat-value stat-slow" id="stat-max-latency">0.00 ms</span>
+        </div>
+        <div class="stat-item" style="margin-left:auto;">
+          <span class="stat-label">当前日志缓存</span>
+          <span class="stat-value" id="stat-log-count">0</span>
+        </div>
+      </div>
+
+      <!-- Log Stream Table -->
+      <div class="log-stream" id="log-stream-container">
+        <!-- Log entries rendered dynamically -->
+      </div>
+    </div>
+
+    <!-- View 3: Split View (Both Side-by-Side) -->
+    <div id="split-view" class="split-view-container" style="display:none;">
+      <div class="split-left" id="split-left-container">
+        <!-- Cloned or embedded API tester -->
+      </div>
+      <div class="split-right" id="split-right-container">
+        <!-- Cloned or embedded log stream -->
+      </div>
+    </div>
+  </main>
+
+  <!-- Global Auth Modal -->
+  <div class="modal-overlay" id="modal-auth" style="display:none;" onclick="if(event.target===this) closeAuthModal()">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>全局认证与请求头设置</h3>
+        <button class="btn btn-secondary btn-sm" onclick="closeAuthModal()" aria-label="关闭"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <!-- Gateway Auth Headers Section -->
+        <div class="form-section">
+          <div class="inline-config">
+            <div class="section-title">网关鉴权请求头 (x-xr-auth-*) — 解决 401 UNAUTHORIZED</div>
+            <label class="check-label">
+              <input type="checkbox" id="auth-enable-xr" checked> 启用自动注入
+            </label>
+          </div>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+            <div class="form-group">
+              <label for="auth-xr-type-input">x-xr-auth-type (认证类型)</label>
+              <input type="text" id="auth-xr-type-input" value="jwt" placeholder="jwt">
+            </div>
+            <div class="form-group">
+              <label for="auth-xr-uid-input">x-xr-auth-uid (用户 ID)</label>
+              <input type="text" id="auth-xr-uid-input" value="563" placeholder="563">
+            </div>
+            <div class="form-group">
+              <label for="auth-xr-sub-input">x-xr-auth-sub (Subject / 用户名)</label>
+              <input type="text" id="auth-xr-sub-input" value="pengcong@x2robot" placeholder="pengcong@x2robot">
+            </div>
+            <div class="form-group">
+              <label for="auth-xr-tid-input">x-xr-auth-tid (租户 ID)</label>
+              <input type="text" id="auth-xr-tid-input" value="888888" placeholder="888888">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="auth-xr-aut-input">x-xr-auth-aut (角色/权限类型)</label>
+            <input type="text" id="auth-xr-aut-input" value="SYS_ADMIN" placeholder="SYS_ADMIN, TENANT_ADMIN">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="auth-tenant-id-input">tenant-id (网关租户请求头)</label>
+          <input type="text" id="auth-tenant-id-input" value="888888" placeholder="888888">
+          <span class="hint">dev / test 网关路由必需的租户识别头 (如 888888)</span>
+        </div>
+
+        <div class="form-group">
+          <label for="auth-token-input">Authorization (Bearer Token / JWT) — 可选</label>
+          <input type="text" id="auth-token-input" placeholder="Bearer eyJhbGciOi...">
+        </div>
+        <div class="form-group">
+          <label for="slow-threshold-input">慢 SQL 判定阈值 (Slow SQL Threshold)</label>
+          <input type="text" id="slow-threshold-input" value="200ms" placeholder="200ms, 300ms, 500ms">
+          <span class="hint">超过此耗时的 SQL 将被突出标记为慢 SQL</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeAuthModal()">取消</button>
+        <button class="btn btn-primary" onclick="saveAuthModal()">保存并生效</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slow SQL Leaderboard Modal -->
+  <div class="modal-overlay" id="modal-slow-sql" style="display:none;" onclick="if(event.target===this) closeSlowSQLModal()">
+    <div class="modal-card" style="width:820px;">
+      <div class="modal-header">
+        <h3>慢 SQL 排行榜</h3>
+        <button class="btn btn-secondary btn-sm" onclick="closeSlowSQLModal()" aria-label="关闭"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
+      </div>
+      <div style="display:flex; gap:6px; padding:0 16px 8px; border-bottom:1px solid var(--border-color);">
+        <button class="btn btn-sm" id="slow-tab-window" onclick="switchSlowTab('window')">保留窗口内</button>
+        <button class="btn btn-sm btn-secondary" id="slow-tab-aggr" onclick="switchSlowTab('aggr')">累计聚合 (<span id="aggr-count">0</span>)</button>
+        <input type="search" id="aggr-filter" placeholder="按模板指纹 / 代码位置搜…" style="margin-left:auto; font-size:12px; padding:4px 9px; border-radius:5px; border:1px solid var(--border-color); background:var(--bg-primary); color:var(--text-primary); min-width:200px;" oninput="renderAggregates()">
+      </div>
+      <div class="modal-body" id="slow-sql-list-container" style="max-height:60vh;">
+        <!-- Slow SQL cards rendered by JS -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeSlowSQLModal()">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- History Modal -->
+  <div class="modal-overlay" id="modal-history" style="display:none;" onclick="if(event.target===this) closeHistoryModal()">
+    <div class="modal-card" style="width:700px;">
+      <div class="modal-header">
+        <h3>接口测试请求历史</h3>
+        <button class="btn btn-secondary btn-sm" onclick="closeHistoryModal()" aria-label="关闭"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
+      </div>
+      <div class="modal-body" id="history-list-container" style="max-height:60vh;">
+        <!-- History items rendered by JS -->
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="clearHistory()">清空历史</button>
+        <button class="btn btn-secondary" onclick="closeHistoryModal()">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Remote Cloud Logs Modal -->
+  <div class="modal-overlay" id="modal-remote-logs" style="display:none;" onclick="if(event.target===this) closeRemoteLogModal()">
+    <div class="modal-card" style="width:680px;">
+      <div class="modal-header">
+        <h3>远端云日志配置 (Workflow Cloud Logs)</h3>
+        <button class="btn btn-secondary btn-sm" onclick="closeRemoteLogModal()" aria-label="关闭"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="hint" style="line-height:1.6;">
+          支持通过 Workflow 平台服务日志接口定时滑动拉取 Dev / Test 环境日志，并自动解析为实时日志流与慢 SQL 监控。
+        </div>
+
+        <div class="form-group">
+          <div class="inline-config">
+            <label for="remote-token-input">Authorization Token (workflow 平台认证鉴权) <span style="color:var(--danger);">*</span></label>
+            <span class="hint" style="cursor:pointer; color:var(--info);" onclick="toggleRemoteTokenVisibility()">显示 / 隐藏</span>
+          </div>
+          <input type="password" id="remote-token-input" placeholder="输入 Authorization Token 或 Bearer JWT 字符串">
+          <span class="hint">请求远端日志检索接口所需的认证 Header</span>
+        </div>
+
+        <div class="form-group">
+          <label for="remote-workflow-url-input">云日志检索接口地址 (DevOps Observability)</label>
+          <input type="text" id="remote-workflow-url-input" value="https://devops.x2robot.com/api/v1/observability/logs/query">
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+          <div class="form-group">
+            <label for="remote-service-input">Service (目标服务名)</label>
+            <input type="text" id="remote-service-input" value="data-service" placeholder="data-service">
+          </div>
+          <div class="form-group">
+            <label for="remote-source-input">Source (数据源)</label>
+            <input type="text" id="remote-source-input" value="default" placeholder="default">
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px;">
+          <!-- Dev Config -->
+          <div class="config-card">
+            <div class="section-title">Dev 开发环境配置</div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label for="remote-dev-environment-input">Environment (环境标识/命名空间)</label>
+              <input type="text" id="remote-dev-environment-input" value="ns-cloud-dev">
+            </div>
+          </div>
+
+          <!-- Test Config -->
+          <div class="config-card">
+            <div class="section-title">Test 测试环境配置</div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label for="remote-test-environment-input">Environment (环境标识/命名空间)</label>
+              <input type="text" id="remote-test-environment-input" value="ns-cloud-test">
+            </div>
+          </div>
+
+          <!-- Prod Config -->
+          <div class="config-card">
+            <div class="section-title">Prod 生产环境配置</div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label for="remote-prod-environment-input">Environment (环境标识/命名空间)</label>
+              <input type="text" id="remote-prod-environment-input" value="ns-cloud-prod">
+            </div>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+          <div class="form-group">
+            <label for="remote-query-mode-input">Query Mode</label>
+            <input type="text" id="remote-query-mode-input" value="keyword">
+          </div>
+          <div class="form-group">
+            <label for="remote-time-range-input">Time Range</label>
+            <input type="text" id="remote-time-range-input" value="realtime">
+          </div>
+          <div class="form-group">
+            <label for="remote-poll-interval-input">轮询间隔 (ms)</label>
+            <input type="number" id="remote-poll-interval-input" value="2000" min="1000" step="500">
+          </div>
+          <div class="form-group">
+            <label for="remote-page-size-input">每页条数 (Page Size)</label>
+            <input type="number" id="remote-page-size-input" value="100" min="10" max="500">
+          </div>
+        </div>
+
+        <!-- Connection Test Box -->
+        <div class="form-section">
+          <div class="inline-config">
+            <span class="section-title">联通性检测 (实时拉取测试)</span>
+            <button class="btn btn-secondary btn-sm" id="btn-test-remote-log" onclick="testRemoteLogConnection()">
+              立即测试连接与拉取
+            </button>
+          </div>
+          <div id="remote-test-result-box" style="display:none;"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeRemoteLogModal()">取消</button>
+        <button class="btn btn-primary" onclick="saveRemoteLogConfig()">保存并生效</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

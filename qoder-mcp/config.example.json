@@ -1,0 +1,14 @@
+{
+  "qodercli_path": "",
+  "cwd": "/Users/xuxinzhi/Documents/gowork/data-service",
+  "allowed_tools": [],
+  "allowed_users": [],
+  "token": "",
+  "timeout_seconds": 600,
+  "transport": "stdio",
+  "host": "127.0.0.1",
+  "port": 8000,
+  "session_db": "~/.qoder/qoder-mcp/sessions.json",
+  "app_id": "",
+  "app_secret": ""
+}

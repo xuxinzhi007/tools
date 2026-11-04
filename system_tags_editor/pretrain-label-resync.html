@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>任务标签重刷对齐</title>
+  <style>
+    :root {
+      --bg: #f5f7fb; --card: #fff; --border: #e5e7eb; --text: #1f2937;
+      --muted: #6b7280; --primary: #2563eb; --ok: #059669;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      display: flex; align-items: flex-start;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg); color: var(--text); line-height: 1.5;
+    }
+    .sidenav {
+      width: 196px; flex: none; position: sticky; top: 0; height: 100vh; overflow: auto;
+      background: #fff; border-right: 1px solid var(--border); padding: 16px 12px;
+    }
+    .sidenav-title { margin: 0 0 8px 6px; font-size: 12px; color: var(--muted); font-weight: 600; }
+    .sidenav a {
+      display: block; padding: 8px 10px; border-radius: 8px; margin-bottom: 2px;
+      text-decoration: none; color: inherit; font-size: 14px;
+    }
+    .sidenav a:hover { background: #f3f4f6; }
+    .sidenav a.on { background: #eff6ff; color: var(--primary); font-weight: 600; }
+    .wrap { flex: 1; min-width: 0; max-width: 1080px; margin: 0 auto; padding: 24px 16px 48px; }
+    @media (max-width: 800px) {
+      body { display: block; }
+      .sidenav { width: auto; height: auto; position: static; display: flex; flex-wrap: wrap; gap: 4px; }
+      .sidenav-title { width: 100%; }
+    }
+    h1 { font-size: 22px; margin: 0 0 8px; }
+    .sub { color: var(--muted); margin: 0 0 16px; font-size: 14px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; margin-bottom: 14px; }
+    .card h2 { font-size: 16px; margin: 0 0 8px; }
+    .hint { font-size: 12px; color: var(--muted); margin: 0 0 10px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { border-bottom: 1px solid var(--border); text-align: left; padding: 7px 8px; vertical-align: top; }
+    th { color: var(--muted); font-weight: 600; font-size: 12px; }
+    td.target { color: #92400e; white-space: nowrap; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chips label {
+      display: inline-flex; align-items: center; gap: 4px;
+      border: 1px solid var(--border); border-radius: 999px;
+      padding: 3px 10px; background: #fafafa; font-size: 12px; cursor: pointer;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .chips label.on { background: #eff6ff; border-color: #93c5fd; color: #1d4ed8; }
+    .row { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; }
+    label.field { font-size: 12px; font-weight: 600; color: var(--muted); }
+    input[type="date"] { border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font-size: 13px; }
+    .opt { font-size: 13px; display: flex; align-items: center; gap: 6px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    button { border: none; border-radius: 6px; padding: 8px 14px; font-size: 14px; cursor: pointer; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-secondary { background: #eef2ff; color: #3730a3; }
+    .btn-mini { background: #eef2ff; color: #3730a3; padding: 4px 8px; font-size: 12px; border-radius: 6px; }
+    .rule { border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+    .rule-head { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .rule-no { font-weight: 700; color: #fff; background: var(--primary); border-radius: 6px; padding: 2px 8px; font-size: 12px; }
+    .rule-head input { flex: 1; }
+    .rule-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .rule-grid label, .dims label { display: block; font-size: 12px; color: var(--muted); font-weight: 600; margin-bottom: 4px; }
+    .rule input, .rule select { width: 100%; border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; font-size: 13px; background: #fff; }
+    .pair { display: flex; gap: 6px; }
+    .pair select { width: 72px; flex: none; }
+    .pair input { flex: 1; width: auto; }
+    .dims { display: flex; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border); }
+    .dims > div { flex: 1; }
+    @media (max-width: 800px) { .rule-grid { grid-template-columns: 1fr; } }
+    textarea {
+      width: 100%; min-height: 360px; border: 1px solid var(--border); border-radius: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; padding: 10px;
+    }
+    .alert { padding: 10px 12px; border-radius: 8px; font-size: 13px; margin-bottom: 10px; }
+    .alert-info { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+    .alert-ok { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; }
+    .alert-warn { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+    code { background: #f3f4f6; padding: 1px 4px; border-radius: 4px; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <nav class="sidenav">
+    <div class="sidenav-title">工具</div>
+    <a href="/">标签编辑</a>
+    <a class="on" href="/tools/pretrain-resync">预训练重刷</a>
+    <a href="/tools/label-repair">脏数据修复</a>
+    <a href="/tools/qc-init">质检初始化</a>
+  </nav>
+  <div class="wrap">
+    <h1>任务标签重刷对齐</h1>
+    <p class="sub">
+      一次只生成一条规则。查询从 <code>tb_collection</code> 关联 <code>tb_device</code>、<code>tb_job</code>。
+      卡片上的条件就是当前规则，改完再点这一条的查询或刷入。后三列是要写入的目标。
+    </p>
+
+    <div class="card">
+      <h2>规则</h2>
+      <p class="hint">留空的条件不写进 SQL。排在前面的规则优先，后面的查询会排除已经命中的更早规则。场景走 <code>tb_job_tag.relation_type = SCENE</code>。</p>
+      <div id="rules"></div>
+      <button class="btn-secondary" type="button" id="btnReset">重置为当前规则</button>
+    </div>
+
+    <div class="card">
+      <h2>无本体设备</h2>
+      <p class="hint">勾选的型号算无本体，未勾选的算有本体。设备条件写在 <code>tb_device.device_model</code> 上，topic 写在 <code>tb_collection.topic</code> 上。</p>
+      <div class="chips" id="devices"></div>
+      <label class="opt" style="margin-top:12px"><input id="onlyMismatch" type="checkbox" /> 查询时排除已经等于目标三维的任务</label>
+      <div class="actions">
+        <button class="btn-secondary" type="button" id="btnCopy">复制 SQL</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>生成的 SQL</h2>
+      <div id="status" class="alert alert-info">先点某一条规则的「查询」。确认行数和创建人之后，再生成这一条的「刷入」。</div>
+      <textarea id="output" readonly spellcheck="false"></textarea>
+    </div>
+  </div>
+
+  <script>
+    const FALLBACK_MODELS = [
+      "UNKNOWN", "CX001", "CX002", "EX001", "EX001_ORIN", "EX002", "EX002_THOR",
+      "DESKTOP", "DESKTOP_AGILEX", "DESKTOP_FLEXIV", "DESKTOP_OPENARM", "FX001_DESKTOP",
+      "FX001", "HANDHOLD_OLD", "LQ_DEX_HAND", "RD001", "RD001_EGO", "RD001_VIO",
+      "RM003_VR_WIRELESS", "RM003_VR_WIRELESS_S", "RP001_VR"
+    ];
+    const FALLBACK_NO_BODY = ["UNKNOWN", "RD001", "RD001_EGO", "RD001_VIO", "RM003_VR_WIRELESS_S"];
+
+    const DEFAULT_RULES = [
+      { name: "外采整机-概括", body: "has_body", topicLike: "_free", topicLikeMode: "suffix", topicNotLike: "", topicNotLikeMode: "suffix", jobSource: "", sceneLike: "", timeFrom: "", timeTo: "", move: "pretrain_mobile_task", factory: "pretrain_non_factory_task", gran: "pretrain_summary" },
+      { name: "外采整机-详细", body: "has_body", topicLike: "_zhengjioutside", topicLikeMode: "contains", topicNotLike: "_free", topicNotLikeMode: "suffix", jobSource: "", sceneLike: "", timeFrom: "", timeTo: "", move: "pretrain_mobile_task", factory: "pretrain_non_factory_task", gran: "pretrain_detail" },
+      { name: "工厂整机/桌面", body: "has_body", topicLike: "", topicLikeMode: "suffix", topicNotLike: "", topicNotLikeMode: "suffix", jobSource: "", sceneLike: "", timeFrom: "", timeTo: "", move: "pretrain_non_mobile_task", factory: "pretrain_factory_task", gran: "pretrain_detail" },
+      { name: "无本体官方", body: "no_body", topicLike: "", topicLikeMode: "suffix", topicNotLike: "", topicNotLikeMode: "suffix", jobSource: "LLM", sceneLike: "", timeFrom: "2026-09-17", timeTo: "2026-09-18", move: "pretrain_non_mobile_task", factory: "pretrain_non_factory_task", gran: "pretrain_summary" },
+      { name: "无本体租户-移动", body: "no_body", topicLike: "", topicLikeMode: "suffix", topicNotLike: "", topicNotLikeMode: "suffix", jobSource: "", sceneLike: "（移动）||(移动)", timeFrom: "", timeTo: "", move: "pretrain_mobile_task", factory: "pretrain_non_factory_task", gran: "pretrain_summary" },
+      { name: "无本体-工厂", body: "no_body", topicLike: "", topicLikeMode: "suffix", topicNotLike: "", topicNotLikeMode: "suffix", jobSource: "", sceneLike: "工厂", timeFrom: "", timeTo: "", move: "pretrain_non_mobile_task", factory: "pretrain_factory_task", gran: "pretrain_summary" },
+    ];
+    const SIX = [
+      "pretrain_detail", "pretrain_factory_task", "pretrain_mobile_task",
+      "pretrain_non_factory_task", "pretrain_non_mobile_task", "pretrain_summary"
+    ];
+
+    function escSql(s) {
+      return String(s == null ? "" : s).replace(/'/g, "''");
+    }
+
+    function nextDay(iso) {
+      const [y, m, d] = iso.split("-").map(Number);
+      return new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
+    }
+
+    function attr(s) {
+      return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+    }
+
+    function modeOptions(selected) {
+      return [["suffix", "后缀"], ["contains", "包含"], ["prefix", "前缀"], ["exact", "等于"]]
+        .map(([v, t]) => `<option value="${v}" ${v === selected ? "selected" : ""}>${t}</option>`).join("");
+    }
+
+    function dimOptions(value, key) {
+      const opts = key === "move"
+        ? ["pretrain_mobile_task", "pretrain_non_mobile_task"]
+        : key === "factory"
+          ? ["pretrain_factory_task", "pretrain_non_factory_task"]
+          : ["pretrain_summary", "pretrain_detail"];
+      const name = {
+        pretrain_mobile_task: "移动任务", pretrain_non_mobile_task: "非移动任务",
+        pretrain_factory_task: "工厂任务", pretrain_non_factory_task: "非工厂任务",
+        pretrain_summary: "概括描述", pretrain_detail: "详细指令",
+      };
+      return opts.map(c => `<option value="${c}" ${c === value ? "selected" : ""}>${name[c]}</option>`).join("");
+    }
+
+    function renderRules(rules) {
+      document.getElementById("rules").innerHTML = rules.map((r, i) => `
+        <div class="rule">
+          <div class="rule-head">
+            <span class="rule-no">${i + 1}</span>
+            <input class="r-name" type="text" value="${attr(r.name)}" />
+            <button type="button" class="btn-mini" data-query="${i}">查询</button>
+            <button type="button" class="btn-mini" data-write="${i}">刷入</button>
+          </div>
+          <div class="rule-grid">
+            <div>
+              <label>本体（tb_device.device_model）</label>
+              <select class="r-body">
+                <option value="has_body" ${r.body === "has_body" ? "selected" : ""}>有本体</option>
+                <option value="no_body" ${r.body === "no_body" ? "selected" : ""}>无本体</option>
+                <option value="any" ${r.body === "any" ? "selected" : ""}>不限</option>
+              </select>
+            </div>
+            <div>
+              <label>topic 匹配（tb_collection.topic）</label>
+              <div class="pair">
+                <select class="r-topic-like-mode">${modeOptions(r.topicLikeMode)}</select>
+                <input class="r-topic-like" type="text" value="${attr(r.topicLike)}" placeholder="留空不限，如 _free" />
+              </div>
+            </div>
+            <div>
+              <label>topic 排除</label>
+              <div class="pair">
+                <select class="r-topic-not-mode">${modeOptions(r.topicNotLikeMode)}</select>
+                <input class="r-topic-not" type="text" value="${attr(r.topicNotLike)}" placeholder="留空不排除" />
+              </div>
+            </div>
+            <div>
+              <label>job_source</label>
+              <input class="r-source" type="text" value="${attr(r.jobSource)}" placeholder="留空不限，如 LLM" />
+            </div>
+            <div>
+              <label>场景名包含（|| 分隔）</label>
+              <input class="r-scene" type="text" value="${attr(r.sceneLike)}" placeholder="留空不看场景" />
+            </div>
+            <div>
+              <label>任务创建日期</label>
+              <div class="pair">
+                <input class="r-from" type="date" value="${attr(r.timeFrom)}" />
+                <input class="r-to" type="date" value="${attr(r.timeTo)}" />
+              </div>
+            </div>
+          </div>
+          <div class="dims">
+            <div><label>是否移动</label><select class="r-move">${dimOptions(r.move, "move")}</select></div>
+            <div><label>是否工厂</label><select class="r-factory">${dimOptions(r.factory, "factory")}</select></div>
+            <div><label>指令颗粒度</label><select class="r-gran">${dimOptions(r.gran, "gran")}</select></div>
+          </div>
+        </div>`).join("");
+    }
+
+    function readRules() {
+      return Array.from(document.querySelectorAll(".rule")).map(el => ({
+        name: el.querySelector(".r-name").value.trim(),
+        body: el.querySelector(".r-body").value,
+        topicLike: el.querySelector(".r-topic-like").value.trim(),
+        topicLikeMode: el.querySelector(".r-topic-like-mode").value,
+        topicNotLike: el.querySelector(".r-topic-not").value.trim(),
+        topicNotLikeMode: el.querySelector(".r-topic-not-mode").value,
+        jobSource: el.querySelector(".r-source").value.trim(),
+        sceneLike: el.querySelector(".r-scene").value.trim(),
+        timeFrom: el.querySelector(".r-from").value,
+        timeTo: el.querySelector(".r-to").value,
+        move: el.querySelector(".r-move").value,
+        factory: el.querySelector(".r-factory").value,
+        gran: el.querySelector(".r-gran").value,
+      }));
+    }
+
+    function renderDevices(models, noBody) {
+      const checked = new Set(noBody && noBody.length ? noBody : FALLBACK_NO_BODY);
+      const codes = [];
+      const seen = new Set();
+      (models && models.length ? models : FALLBACK_MODELS).concat(FALLBACK_NO_BODY).forEach(c => {
+        if (!seen.has(c)) { seen.add(c); codes.push(c); }
+      });
+      const box = document.getElementById("devices");
+      box.innerHTML = codes.map(code => {
+        const on = checked.has(code);
+        return `<label class="${on ? "on" : ""}"><input type="checkbox" value="${code}" ${on ? "checked" : ""}/>${code}</label>`;
+      }).join("");
+      box.querySelectorAll("input").forEach(inp => {
+        inp.addEventListener("change", () => inp.parentElement.classList.toggle("on", inp.checked));
+      });
+    }
+
+    function selectedNoBody() {
+      return Array.from(document.querySelectorAll("#devices input:checked")).map(el => el.value);
+    }
+
+    const DIM_NAME = {
+      pretrain_mobile_task: "移动任务",
+      pretrain_non_mobile_task: "非移动任务",
+      pretrain_factory_task: "工厂任务",
+      pretrain_non_factory_task: "非工厂任务",
+      pretrain_summary: "概括描述",
+      pretrain_detail: "详细指令",
+    };
+    const OPPOSITE = {
+      pretrain_mobile_task: "pretrain_non_mobile_task",
+      pretrain_non_mobile_task: "pretrain_mobile_task",
+      pretrain_factory_task: "pretrain_non_factory_task",
+      pretrain_non_factory_task: "pretrain_factory_task",
+      pretrain_summary: "pretrain_detail",
+      pretrain_detail: "pretrain_summary",
+    };
+
+    function sqlIn(codes) {
+      return codes.map(c => "'" + c + "'").join(", ");
+    }
+
+    function likeLiteral(value, mode) {
+      const esc = String(value).replace(/[\\%_]/g, ch => "\\\\" + ch);
+      if (mode === "prefix") return "'" + esc + "%'";
+      if (mode === "exact") return "'" + esc + "'";
+      if (mode === "contains") return "'%" + esc + "%'";
+      return "'%" + esc + "'";
+    }
+
+    function topicCond(column, value, mode, neg) {
+      if (!value) return "";
+      return column + (neg ? " NOT LIKE " : " LIKE ") + likeLiteral(value, mode) + " ESCAPE '\\\\'";
+    }
+
+    function sceneCond(rule, jobIdExpr) {
+      const parts = String(rule.sceneLike || "").split("||").map(s => s.trim()).filter(Boolean);
+      if (!parts.length) return "";
+      const or = parts.map(s => "st.tag_name LIKE " + likeLiteral(s, "contains") + " ESCAPE '\\\\'").join(" OR ");
+      return `EXISTS (
+    SELECT 1 FROM tb_job_tag sj
+    JOIN tb_tag st ON st.tag_id = sj.tag_id
+    WHERE sj.job_id = ${jobIdExpr}
+      AND sj.relation_type = 'SCENE'
+      AND (${or}))`;
+    }
+
+    function matchConds(rule, p, a) {
+      const conds = [];
+      if (rule.body === "has_body") conds.push(`${a.dev}.device_model NOT IN ${p.nbs}`);
+      if (rule.body === "no_body") conds.push(`${a.dev}.device_model IN ${p.nbs}`);
+      const like = topicCond(`${a.col}.topic`, rule.topicLike, rule.topicLikeMode, false);
+      const notLike = topicCond(`${a.col}.topic`, rule.topicNotLike, rule.topicNotLikeMode, true);
+      if (like) conds.push(like);
+      if (notLike) conds.push(notLike);
+      if (rule.jobSource) conds.push(`${a.job}.job_source = '${escSql(rule.jobSource)}'`);
+      if (rule.timeFrom) conds.push(`${a.job}.created_at >= '${escSql(rule.timeFrom)} 00:00:00'`);
+      if (rule.timeTo) conds.push(`${a.job}.created_at < '${escSql(nextDay(rule.timeTo))} 00:00:00'`);
+      const scene = sceneCond(rule, `${a.job}.job_id`);
+      if (scene) conds.push(scene);
+      if (rule.body === "no_body") {
+        conds.push(`NOT EXISTS (
+    SELECT 1 FROM tb_collection nb
+    JOIN tb_device nd ON nd.device_id = nb.device_id
+    WHERE nb.job_id = ${a.job}.job_id
+      AND nd.device_model NOT IN ${p.nbs})`);
+      }
+      return conds;
+    }
+
+    function earlierExclude(rule, rules, p) {
+      const idx = rules.indexOf(rule);
+      const parts = [];
+      for (let i = 0; i < idx; i++) {
+        const prev = matchConds(rules[i], p, { col: "c2", dev: "d2", job: "j2" });
+        if (!prev.length) continue;
+        parts.push(`NOT EXISTS (
+    SELECT 1 FROM tb_collection c2
+    JOIN tb_device d2 ON d2.device_id = c2.device_id
+    JOIN tb_job j2 ON j2.job_id = c2.job_id
+    WHERE c2.job_id = j.job_id
+      AND ${prev.join("\n      AND ")})`);
+      }
+      return parts;
+    }
+
+    const COLLECT_FROM = `FROM tb_collection col
+JOIN tb_device d ON d.device_id = col.device_id
+JOIN tb_job j ON j.job_id = col.job_id`;
+
+    function whereSQL(rule, rules, p) {
+      const conds = [
+        "j.status <> 90",
+        `EXISTS (
+    SELECT 1 FROM tb_job_tag jt
+    JOIN tb_tag t ON t.tag_id = jt.tag_id
+    WHERE jt.job_id = j.job_id
+      AND jt.relation_type = 'LABEL'
+      AND t.tag_code = 'pretrain_large_scale')`,
+        ...matchConds(rule, p, { col: "col", dev: "d", job: "j" }),
+        ...earlierExclude(rule, rules, p),
+      ];
+      return conds.join("\n  AND ");
+    }
+
+    function params() {
+      const list = selectedNoBody();
+      if (!list.length) return { error: "至少勾选一个无本体设备。" };
+      return {
+        nbs: "('" + list.map(escSql).join("','") + "')",
+        onlyMismatch: document.getElementById("onlyMismatch").checked,
+      };
+    }
+
+    function show(sql, msg, ok) {
+      const statusEl = document.getElementById("status");
+      statusEl.className = ok ? "alert alert-ok" : "alert alert-warn";
+      statusEl.textContent = msg;
+      if (sql) document.getElementById("output").value = sql.trim() + "\n";
+    }
+
+    function ruleReady(rule) {
+      if (rule.timeFrom && rule.timeTo && rule.timeFrom > rule.timeTo) return "创建日期开始晚于结束。";
+      return "";
+    }
+
+    function buildQuery(index) {
+      const p = params();
+      if (p.error) { show("", p.error, false); return; }
+      const rules = readRules();
+      const rule = rules[index];
+      const bad = ruleReady(rule);
+      if (bad) { show("", bad, false); return; }
+      const where = whereSQL(rule, rules, p);
+      const codes = [rule.move, rule.factory, rule.gran].slice().sort().join(",");
+      const mismatch = p.onlyMismatch ? `
+  AND IFNULL((
+    SELECT GROUP_CONCAT(t.tag_code ORDER BY t.tag_code SEPARATOR ',')
+    FROM tb_job_tag jt
+    JOIN tb_tag t ON t.tag_id = jt.tag_id
+    WHERE jt.job_id = j.job_id
+      AND jt.relation_type = 'LABEL'
+      AND t.tag_code IN (${sqlIn(SIX)})
+  ), '') <> '${codes}'` : "";
+      show(`-- 规则 ${index + 1} ${rule.name}
+-- 主表 tb_collection，关联 tb_device、tb_job
+-- 目标：${DIM_NAME[rule.move]} / ${DIM_NAME[rule.factory]} / ${DIM_NAME[rule.gran]}
+
+SELECT j.job_id, j.created_by, j.job_name,
+       GROUP_CONCAT(DISTINCT d.device_model ORDER BY d.device_model SEPARATOR ',') AS device_models,
+       GROUP_CONCAT(DISTINCT col.topic ORDER BY col.topic SEPARATOR '|') AS topics,
+       '${escSql(DIM_NAME[rule.move])}' AS \`是否移动\`,
+       '${escSql(DIM_NAME[rule.factory])}' AS \`是否工厂\`,
+       '${escSql(DIM_NAME[rule.gran])}' AS \`指令颗粒度\`
+${COLLECT_FROM}
+WHERE ${where}${mismatch}
+GROUP BY j.job_id, j.created_by, j.job_name;`, `已生成规则 ${index + 1}（${rule.name}）的查询。主表是 tb_collection。`, true);
+    }
+
+    function buildWrite(index) {
+      const p = params();
+      if (p.error) { show("", p.error, false); return; }
+      const rules = readRules();
+      const rule = rules[index];
+      const bad = ruleReady(rule);
+      if (bad) { show("", bad, false); return; }
+      const where = whereSQL(rule, rules, p);
+      const keep = [rule.move, rule.factory, rule.gran];
+      const drop = keep.map(c => OPPOSITE[c]);
+      show(`-- 规则 ${index + 1} ${rule.name} | 只刷这一条
+-- 目标：${DIM_NAME[rule.move]} / ${DIM_NAME[rule.factory]} / ${DIM_NAME[rule.gran]}
+-- 先跑上面的查询。确认之后再执行下面两条。
+
+DELETE jt
+FROM tb_job_tag jt
+JOIN tb_tag tg ON tg.tag_id = jt.tag_id AND tg.tag_code IN (${sqlIn(drop)})
+JOIN tb_job j ON j.job_id = jt.job_id
+JOIN tb_collection col ON col.job_id = j.job_id
+JOIN tb_device d ON d.device_id = col.device_id
+WHERE jt.relation_type = 'LABEL'
+  AND ${where};
+
+INSERT IGNORE INTO tb_job_tag (job_id, tag_id, relation_type, tenant_id, created_by, uid)
+SELECT DISTINCT j.job_id, t.tag_id, 'LABEL', j.tenant_id, 'pretrain-label-resync', 0
+${COLLECT_FROM}
+JOIN tb_tag t
+  ON t.tenant_id = 888888
+ AND t.status = 2
+ AND t.tag_code IN (${sqlIn(keep)})
+WHERE ${where};`, `已生成规则 ${index + 1}（${rule.name}）的刷入。先删对面叶子，再补目标。`, true);
+    }
+
+    document.getElementById("rules").addEventListener("click", (e) => {
+      const q = e.target.closest("[data-query]");
+      if (q) { buildQuery(Number(q.dataset.query)); return; }
+      const w = e.target.closest("[data-write]");
+      if (w) buildWrite(Number(w.dataset.write));
+    });
+    document.getElementById("btnReset").addEventListener("click", () => {
+      renderRules(DEFAULT_RULES.map(r => Object.assign({}, r)));
+    });
+
+    document.getElementById("btnCopy").addEventListener("click", async () => {
+      const text = document.getElementById("output").value;
+      if (!text) return;
+      try {
+        await navigator.clipboard.writeText(text);
+        document.getElementById("status").textContent = "SQL 已复制。";
+      } catch (e) {
+        document.getElementById("output").select();
+        document.execCommand("copy");
+        document.getElementById("status").textContent = "SQL 已复制。";
+      }
+    });
+
+    renderRules(DEFAULT_RULES.map(r => Object.assign({}, r)));
+    renderDevices(FALLBACK_MODELS, FALLBACK_NO_BODY);
+    fetch("/api/device-classes")
+      .then(r => r.json())
+      .then(data => renderDevices(data.models || [], data.no_body || []))
+      .catch(() => {});
+  </script>
+</body>
+</html>

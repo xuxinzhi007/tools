@@ -1,0 +1,164 @@
+{
+  "name": "feature",
+  "kind": "execute",
+  "when": "references/scope.md 定为 L3 的变更：公共契约、持久化迁移、权限、状态机、跨服务契约、难以回滚。已有边界内的筛选或小功能走 change，不因为用户说「做个功能」就进这条。本模板按 Go 栈（data-service 实例）预设编码与契约门；未声明 Go 栈的项目默认走 change，或由该项目提供对应 stack 模板。",
+  "principle": "阶段串行，前一步的产出就是后一步的输入。任一门未过就停，不自行绕过。Go 栈专属门（go-style、contract_diff、go test）只对声明了 Go 栈的项目生效。",
+  "artifacts_root": "specs/<feature>/",
+  "stages": [
+    {
+      "id": 1,
+      "name": "需求与负债评估",
+      "reads": [
+        "$KNOW/<相关域>/（一次一个域文件）",
+        "$REPO 当前 checkout"
+      ],
+      "artifacts": [
+        "specs/<feature>/spec.md"
+      ],
+      "requires": [
+        "原话",
+        "我理解你要的是",
+        "可能理解错",
+        "本质",
+        "怎样算满足",
+        "未知"
+      ],
+      "template": "templates/spec-template.md",
+      "gate": "先按 references/scope.md 定级。L1 改走 change。L3 才留在这里：spec.md 第一屏含原话（一字不改）/ 我理解你要的是 / 可能理解错的地方 / 本质 / 怎样算满足与未知；缺任一行 runner 打 GATE（字面量门，不判好坏）。含糊时把歧义写进「可能理解错的地方」再 wait，别先猜。然后九项无阻塞；该标记清零",
+      "on_gate_fail": "停在需求阶段，报告缺什么信息，不进技术方案",
+      "subagents": {
+        "allowed": true,
+        "criteria": "调研阶段允许 fan-out：2 个以上彼此独立、无共享状态、互不需要对方上下文的问题才派子 agent（例：三个互不相关的业务域各查一次口径）",
+        "forbidden": [
+          "同一问题的不同角度反复派",
+          "需要全局状态才能判断的排查",
+          "实现类任务"
+        ]
+      },
+      "file": "stages/requirement-analysis/SKILL.md"
+    },
+    {
+      "id": 2,
+      "name": "影响面评估",
+      "reads": [
+        "specs/<feature>/spec.md",
+        "$REPO 当前 checkout"
+      ],
+      "artifacts": [
+        "specs/<feature>/impact.md"
+      ],
+      "template": "templates/impact-template.md",
+      "gate": "四轴 + 维护性三查每项都有证据或 UNVERIFIED；新增枚举有全库消费点追踪；数据不可逆且无备份 = 阻塞",
+      "on_gate_fail": "回阶段 1 改方案或补证据",
+      "subagents": {
+        "allowed": true,
+        "criteria": "四轴可并行取证（各自只读、互不写同一文件），但结论必须由主 agent 合并裁决",
+        "forbidden": [
+          "让子 agent 下 breaking 判定"
+        ]
+      },
+      "file": "stages/impact-assessment/SKILL.md"
+    },
+    {
+      "id": 3,
+      "name": "技术方案",
+      "reads": [
+        "specs/<feature>/spec.md",
+        "specs/<feature>/impact.md",
+        "$TECH_DESIGN_TEMPLATE"
+      ],
+      "artifacts": [
+        "specs/<feature>/plan.md",
+        "specs/<feature>/rollback.md"
+      ],
+      "template": "templates/plan-template.md",
+      "gate": "接口/数据/状态/权限/验证/发布回滚六节非空或显式写「无」；DoD 每条都是可执行命令；欠债三要素齐全",
+      "on_gate_fail": "回阶段 1 或 2",
+      "subagents": {
+        "allowed": false,
+        "reason": "方案需要单一作者视角，拆开写会互相矛盾"
+      },
+      "file": "stages/tech-design/SKILL.md"
+    },
+    {
+      "id": 4,
+      "name": "编码实现（Go 栈）",
+      "code": true,
+      "reads": [
+        "specs/<feature>/plan.md",
+        "$PLUGIN_ROOT/stages/implementation/references/go-style.md",
+        "reuse-gate.md"
+      ],
+      "artifacts": [
+        "代码改动",
+        "api/**/*_contract_test.go（仅当 stack=go，碰到端点而无覆盖时补）"
+      ],
+      "gate": "（仅当 stack=go）读 go-style.md 与 reuse-gate.md；复用门禁：第 2 次出现同语义逻辑必须复用已有实现；跨层依赖 = 0",
+      "on_gate_fail": "改实现，不许带着重复逻辑往下走",
+      "subagents": {
+        "allowed": false,
+        "reason": "实现类子 agent 禁止并行——共享工作树会互相覆盖，见 references/subagent-protocol.md"
+      },
+      "file": "stages/implementation/SKILL.md"
+    },
+    {
+      "id": 5,
+      "name": "改动审核（三轴）",
+      "reads": [
+        "specs/<feature>/diff.patch",
+        "specs/<feature>/spec.md",
+        "specs/<feature>/plan.md"
+      ],
+      "artifacts": [
+        "specs/<feature>/review/*.md"
+      ],
+      "gate": "三轴各自交回 findings 与证据，主 agent 合并出 risk=high/medium/low；出现 high 或 medium 即停",
+      "on_gate_fail": "回阶段 4 修，修完重跑（review 指纹失效必须重跑）",
+      "subagents": {
+        "allowed": true,
+        "criteria": "三轴并行：spec 合规 / 代码质量 / 接口影响，各拿同一份 diff 文件、只读、各写自己的 report",
+        "forbidden": [
+          "让审核子 agent 直接改代码"
+        ]
+      },
+      "file": "stages/change-review/SKILL.md"
+    },
+    {
+      "id": 6,
+      "name": "质量与接口门",
+      "reads": [
+        "$REPO"
+      ],
+      "artifacts": [
+        "specs/<feature>/quality.md"
+      ],
+      "gate": "构建 + 单测 + 接口三级门（① go test ./api/...（Go 栈）② contract_diff.sh（Go 栈）③ 场景回放或如实 WAIVED）",
+      "on_gate_fail": "停在失败项；WAIVED 必须写补跑条件",
+      "calls": [
+        "stages/interface-test/SKILL.md"
+      ],
+      "file": "stages/quality-gate/SKILL.md"
+    },
+    {
+      "id": 7,
+      "name": "文档审计与提交",
+      "reads": [
+        "specs/<feature>/*",
+        "git diff --name-only <base>..HEAD"
+      ],
+      "artifacts": [
+        "specs/<feature>/change-note.md",
+        "commit",
+        "MR 描述"
+      ],
+      "template": "templates/change-note-template.md",
+      "gate": "文档审计门：需要同步的文档已同步，或显式记账「接受的文档风险」",
+      "on_gate_fail": "补文档，或记账后再提交；不许沉默提交",
+      "file": "stages/git-commit/SKILL.md"
+    }
+  ],
+  "bypass": [
+    "stages/oncall/SKILL.md（线上排查，只读，不插入本链）",
+    "stages/excalidraw-diagram/SKILL.md（画图，按需）"
+  ]
+}

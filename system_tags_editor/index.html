@@ -1,0 +1,1511 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>system_tags 编辑器</title>
+  <style>
+    :root {
+      --bg: #f0f2f5;
+      --surface: #ffffff;
+      --border: #e5e7eb;
+      --text: #111827;
+      --muted: #5b6472;
+      --accent: #2563eb;
+      --accent-soft: #eff6ff;
+      --ok: #059669;
+      --ok-soft: #ecfdf5;
+      --warn: #d97706;
+      --danger: #dc2626;
+      --shadow: 0 1px 2px rgba(0,0,0,.04), 0 4px 12px rgba(0,0,0,.04);
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--text);
+      background: var(--bg);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .top {
+      flex: none;
+      z-index: 20;
+      background: rgba(255,255,255,.92);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+      padding: .7rem 1.25rem;
+      display: flex; flex-direction: column; gap: .45rem;
+    }
+    .top-row { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+    .top h1 { margin: 0; font-size: 1.05rem; margin-right: .6rem; }
+    .top .meta { color: var(--muted); font-size: .8rem; flex: 1; min-width: 200px; }
+    .top-actions { display: flex; gap: .5rem; align-items: center; }
+    button, label.btn, a.btn {
+      border: 1px solid var(--border); background: #fff; border-radius: 8px;
+      padding: .4rem .75rem; font-size: .82rem; cursor: pointer;
+      text-decoration: none; color: inherit;
+    }
+    button:hover, label.btn:hover, a.btn:hover { border-color: #c7d2fe; }
+    button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    button.ok { background: var(--ok); color: #fff; border-color: var(--ok); }
+    button.ghost { background: transparent; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    input[type="search"], input[type="text"] {
+      border: 1px solid var(--border); border-radius: 8px; padding: .4rem .65rem; font-size: .82rem;
+      background: #fff;
+    }
+
+    .tools { display: flex; gap: .25rem; align-items: center; flex-wrap: wrap; }
+    .tool-item {
+      padding: .32rem .75rem; border-radius: 8px; font-size: .82rem;
+      color: var(--muted); text-decoration: none;
+    }
+    .tool-item:hover { background: #f3f4f6; color: var(--text); }
+    .tool-item.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+
+    .layout {
+      flex: 1;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 340px;
+      min-height: 0;
+    }
+    .treearea {
+      overflow: auto;
+      padding: 1rem 1.25rem 2.5rem;
+      min-width: 0;
+    }
+    .editpanel {
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      overflow: auto;
+      padding: 1rem 1.1rem;
+      min-width: 0;
+    }
+
+    /* 批量操作栏：浮在表格上方，不占文档流。
+       原来是 display:none → block，一选中就会把 121 行表格整体往下推，
+       视觉上像页面跳了一下。改成固定定位后，选中只多一层浮层，
+       表格位置不变。右边留 340px 给侧栏，避免盖住编辑面板。 */
+    .bulkbar {
+      display: none;
+      position: fixed; left: 1.25rem; right: 360px; top: 6.2rem;
+      z-index: 5;
+      background: var(--accent-soft); border: 1px solid #bfdbfe; border-radius: 12px;
+      padding: .6rem 1rem;
+      box-shadow: 0 6px 18px rgba(37,99,235,.12);
+    }
+    .bulkbar.show { display: block; }
+    .bulkbar .row { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-top: .45rem; }
+    .bulkbar .row:first-child { margin-top: 0; }
+    .bulk-title { font-size: .85rem; font-weight: 600; color: #1e40af; font-variant-numeric: tabular-nums; }
+
+    .tbl {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      /* 不能用 overflow:hidden：它会成为 sticky 的 a 滚动祖先，表头就吸不住了。
+         clip 同样能裁圆角，但不创建滚动容器。旧浏览器不认时退回 visible——
+         代价只是圆角处可能有 1px 溢出，表头功能不受影响。 */
+      overflow: clip;
+      box-shadow: var(--shadow);
+    }
+    /* 批量栏浮起来时给表格顶部留出呼吸位，否则第一行会被浮层盖住。
+       用 JS 切 class，不靠 :has()——旧版 Safari/Chrome 不认 :has 时
+       表格会被浮层压住一半，那是真的用不了。 */
+    .treearea.bulk-open .tbl { margin-top: 3.2rem; }
+    .thead, .trow {
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr) minmax(160px, 30%);
+      align-items: center; gap: .5rem;
+      padding: .5rem .9rem;
+    }
+    /* 表头固定在 .treearea 顶部：121 行滚下去以后还要知道哪列是什么。
+       background 必须不透明——#fafafa 是半透明观感，滚动时内容会透过来。
+       top 用 -1rem 抵消 .treearea 的 padding，否则吸顶时会露出一条缝。 */
+    .thead {
+      font-size: .72rem; color: var(--muted); font-weight: 600;
+      border-bottom: 1px solid var(--border); background: var(--surface);
+      letter-spacing: .02em;
+      position: sticky; top: -1rem; z-index: 2;
+    }
+    .trow { border-bottom: 1px solid #f3f4f6; font-size: .85rem; cursor: pointer; transition: background .12s; }
+    .trow:last-child { border-bottom: none; }
+    .trow:hover { background: #f5f8ff; }
+    .trow.selected { background: var(--accent-soft); }
+    .trow.active { background: #eef4ff; box-shadow: inset 3px 0 0 var(--accent); }
+    .namecell { min-width: 0; }
+    .nm { display: flex; align-items: center; gap: .4rem; }
+    .tname { font-weight: 600; }
+    .tcode-inline {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: .68rem; color: #9ca3af; margin-left: .4rem;
+    }
+    .tgroup {
+      display: flex; align-items: center; gap: .5rem;
+      padding: .55rem .9rem;
+      background: #f8fafc;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      margin-top: .35rem;
+      cursor: pointer;
+      box-shadow: inset 3px 0 0 var(--tc, var(--accent));
+    }
+    .tgroup:first-of-type { margin-top: 0; }
+    .tgroup:hover { background: #f1f5f9; }
+    .tgroup.active { background: var(--accent-soft); }
+    .tgroup-name { font-weight: 700; font-size: .88rem; }
+    .tgroup-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .68rem; color: var(--muted); }
+    .tcell { font-size: .78rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    .tcell.muted { color: var(--muted); }
+    .tarr {
+      border: none; background: transparent; cursor: pointer; color: var(--muted);
+      font-size: .72rem; width: 18px; padding: 0; flex-shrink: 0; text-align: center;
+    }
+    .tdot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .summary { display: flex; flex-wrap: wrap; gap: .2rem .4rem; align-items: center; }
+    .pills { display: inline-flex; flex-wrap: wrap; gap: .15rem; }
+    .count {
+      font-size: .7rem; color: var(--muted);
+      background: #f3f4f6; border-radius: 999px; padding: .05rem .5rem;
+      font-variant-numeric: tabular-nums;
+    }
+    .pill {
+      display: inline-block; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: .72rem; background: #f1f2f5; border-radius: 6px;
+      padding: .05rem .4rem; margin: 0 .2rem .15rem 0;
+    }
+    .jpill {
+      display: inline-block; background: var(--accent-soft); color: #1d4ed8;
+      border-radius: 6px; padding: .05rem .45rem; margin: 0 .2rem .15rem 0; font-size: .72rem;
+      white-space: nowrap;
+    }
+    .jpill.teleop { background: #ede9fe; color: #6d28d9; }
+    .bpill {
+      display: inline-block; background: #f3f4f6; color: #374151;
+      border-radius: 6px; padding: .05rem .45rem; margin: 0 .2rem .15rem 0; font-size: .72rem;
+      white-space: nowrap;
+    }
+    .grade-badge {
+      display: inline-block; min-width: 1.4em; text-align: center;
+      padding: .05rem .4rem; border-radius: .35rem; font-size: .72rem; color: #fff;
+    }
+    .dup-badge { margin-left: .45rem; padding: .05rem .45rem; border-radius: .35rem; font-size: .72rem; color: #fff; background: var(--danger); }
+
+    .panel-empty { padding: 1.5rem 1rem; text-align: center; color: var(--muted); }
+    .pe-title { font-size: .95rem; font-weight: 600; color: var(--text); margin-bottom: .6rem; }
+    .pe-desc { font-size: .8rem; line-height: 1.6; margin: .3rem 0; }
+    .p-head {
+      display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+      padding-bottom: .7rem; border-bottom: 1px solid var(--border); margin-bottom: .7rem;
+    }
+    .ptype { color: #fff; font-size: .72rem; border-radius: 6px; padding: .12rem .5rem; }
+    .p-name { font-size: 1rem; }
+    .p-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .72rem; color: var(--muted); }
+    .p-info { color: var(--muted); font-size: .8rem; line-height: 1.6; margin: .3rem 0 .7rem; }
+    .p-inline { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .6rem; }
+    .p-actions {
+      display: flex; gap: .5rem; flex-wrap: wrap; margin-top: .9rem;
+      padding-top: .7rem; border-top: 1px solid var(--border);
+    }
+    .btn-danger { border-color: #fecaca; color: var(--danger); }
+    .btn-danger:hover { background: #fef2f2; border-color: #fca5a5; }
+
+    .mask {
+      position: fixed; inset: 0; background: rgba(17,24,39,.45); z-index: 40;
+      display: none; align-items: center; justify-content: center; padding: 1.5rem;
+    }
+    .mask.show { display: flex; }
+    .modal {
+      background: #fff; border-radius: 14px; max-width: 960px; width: 100%;
+      max-height: 86vh; display: flex; flex-direction: column;
+      box-shadow: 0 12px 40px rgba(0,0,0,.18);
+    }
+    .modal-head { padding: .9rem 1.1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: .6rem; }
+    .modal-head h3 { margin: 0; font-size: .95rem; }
+    .modal-head .meta { color: var(--muted); font-size: .78rem; flex: 1; }
+    .modal-body {
+      overflow: auto; padding: .9rem 1.1rem;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: .75rem; line-height: 1.55;
+    }
+    .modal-foot { padding: .8rem 1.1rem; border-top: 1px solid var(--border); display: flex; gap: .5rem; justify-content: flex-end; }
+    .diff-line { white-space: pre-wrap; word-break: break-all; border-radius: 4px; padding: 0 .35rem; }
+    .diff-add { background: var(--ok-soft); color: #065f46; }
+    .diff-del { background: #fef2f2; color: #991b1b; }
+    .diff-ctx { color: var(--muted); }
+    .diff-skip { color: #9ca3af; font-style: italic; padding: .1rem .35rem; }
+
+    .field { margin-top: .7rem; }
+    .field > .label {
+      font-size: .72rem; color: var(--muted); margin-bottom: .35rem; font-weight: 600;
+      letter-spacing: .02em;
+    }
+    .chips { display: flex; flex-wrap: wrap; gap: .35rem; }
+    .chips label {
+      display: inline-flex; align-items: center; gap: .28rem;
+      border: 1px solid var(--border); border-radius: 7px;
+      padding: .22rem .55rem; background: #fafafa; font-size: .78rem; cursor: pointer;
+      user-select: none; transition: all .12s;
+    }
+    .chips label:hover { border-color: #93c5fd; }
+    .chips label.on { background: var(--accent-soft); border-color: #93c5fd; color: #1d4ed8; box-shadow: inset 0 0 0 1px #93c5fd; }
+    .chips label input { accent-color: var(--accent); }
+    .field input[type="text"] { width: 100%; }
+
+    .empty {
+      padding: 3rem 1rem; text-align: center; color: var(--muted);
+      background: var(--surface); border-radius: 12px; border: 1px dashed var(--border);
+    }
+    .toast {
+      position: fixed; right: 1rem; bottom: 1rem; z-index: 50;
+      background: #111827; color: #fff; padding: .65rem .95rem; border-radius: 10px;
+      font-size: .85rem; display: none; box-shadow: var(--shadow);
+    }
+    .toast.show { display: block; }
+    .toast.ok    { background: #065f46; }
+    .toast.warn  { background: #92400e; }
+    .toast.error { background: #b91c1c; }
+    .skel-row { display: flex; gap: .5rem; padding: .55rem .9rem; border-bottom: 1px solid #f3f4f6; align-items: center; }
+    .skel-bar {
+      height: .85rem; border-radius: 6px;
+      background: linear-gradient(90deg, #f1f2f5 25%, #e8eaee 37%, #f1f2f5 63%);
+      background-size: 400% 100%; animation: skel 1.2s ease infinite;
+    }
+    @keyframes skel { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
+    .form-err { color: var(--danger); font-size: .78rem; margin-top: .4rem; }
+    input.invalid { border-color: var(--danger); }
+
+    .dirty-badge {
+      color: #92400e; font-size: .75rem; font-weight: 600;
+      background: #fef3c7; border-radius: 999px; padding: .18rem .65rem;
+    }
+    .model-hint { font-size: .72rem; color: var(--danger); margin-top: .25rem; }
+    #previewSummary { font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif; }
+    .sum-line { padding: .3rem .5rem; border-radius: 6px; margin-bottom: .3rem; font-size: .78rem; }
+    .sum-add { background: var(--ok-soft); }
+    .sum-del { background: #fef2f2; }
+    .sum-change { background: #fffbeb; }
+    .sum-tag { display: inline-block; min-width: 2.2em; text-align: center; border-radius: 4px; font-size: .72rem; margin-right: .5rem; color: #fff; }
+    .sum-path { color: var(--muted); font-size: .72rem; margin-left: .5rem; }
+    .sum-fields { margin: .15rem 0 0 2.7rem; color: var(--muted); }
+    details.line-diff summary { cursor: pointer; color: var(--muted); font-size: .78rem; margin: .5rem 0 .2rem; }
+
+    @media (max-width: 1100px) {
+      .layout { grid-template-columns: minmax(0, 1fr) 300px; }
+      .thead, .trow { grid-template-columns: 28px minmax(0, 1fr); }
+      .thead > div:nth-child(3), .summary { display: none; }
+    }
+    @media (max-width: 860px) {
+      html, body { height: auto; display: block; }
+      .layout { display: block; height: auto; }
+      .treearea { height: auto; overflow: visible; }
+      .editpanel { height: auto; border-left: none; border-top: 1px solid var(--border); }
+    }
+  </style>
+</head>
+<body>
+  <div class="top">
+    <div class="top-row">
+      <h1>system_tags 编辑器</h1>
+      <nav class="tools">
+        <a class="tool-item active" href="/">标签编辑</a>
+        <a class="tool-item" href="/tools/pretrain-resync">预训练重刷</a>
+        <a class="tool-item" href="/tools/label-repair">脏数据修复</a>
+        <a class="tool-item" href="/tools/qc-init">质检初始化</a>
+      </nav>
+      <span class="dirty-badge" id="dirtyBadge" style="display:none">● 未保存</span>
+    </div>
+    <div class="top-row">
+      <input id="q" type="search" placeholder="搜索标签（自动展开匹配路径）…" style="width:240px" />
+      <span class="meta" id="status">尚未加载 · 不勾任务类型 = 通用</span>
+      <span class="top-actions">
+        <button class="primary" id="btnLoadRepo" type="button">从仓库加载</button>
+        <button class="ok" id="btnSaveRepo" type="button" disabled>写回仓库</button>
+        <label class="btn">导入<input id="fileIn" type="file" accept="application/json,.json" hidden /></label>
+        <button id="btnExport" type="button" disabled>导出</button>
+      </span>
+    </div>
+  </div>
+
+  <div class="layout">
+    <section class="treearea" id="treearea">
+      <div class="bulkbar" id="bulkPanel">
+        <div class="row">
+          <span class="bulk-title" id="selCount">已选 0</span>
+          <span class="chips" id="bulkJobs"></span>
+          <button id="btnBulkSet" type="button">应用任务类型</button>
+          <button id="btnBulkClear" type="button">清成通用</button>
+          <button class="ghost" id="btnSelAll" type="button">全选本页</button>
+          <button class="ghost" id="btnSelNone" type="button">取消选择</button>
+        </div>
+      </div>
+
+      <div class="tbl" id="tbl">
+        <div class="thead">
+          <div></div>
+          <div>名称 / code</div>
+          <div>摘要</div>
+        </div>
+        <div id="tblBody"></div>
+      </div>
+      <div class="empty" id="empty" style="display:none">请先从仓库加载或导入 JSON</div>
+    </section>
+
+    <aside class="editpanel" id="editPanel">
+      <div class="panel-empty" id="panelEmpty">
+        <div class="pe-title">标签编辑</div>
+        <p class="pe-desc">点击左侧树中的任意节点，在此查看与编辑。</p>
+        <p class="pe-desc" style="color:var(--muted)">质检叶子可配置分级 / 任务类型 / 本体 / 设备型号；非质检叶子可配置租户可见性。</p>
+      </div>
+      <div class="panel-body" id="panelBody" style="display:none"></div>
+    </aside>
+  </div>
+
+  <div class="mask" id="previewMask">
+    <div class="modal">
+      <div class="modal-head">
+        <h3>写回预览</h3>
+        <span class="meta" id="previewMeta"></span>
+      </div>
+      <div class="modal-body">
+        <div id="previewSummary"></div>
+        <details class="line-diff">
+          <summary>行级 diff（点击展开）</summary>
+          <div id="previewDiff"></div>
+        </details>
+      </div>
+      <div class="modal-foot">
+        <button class="ghost" id="btnPreviewCancel" type="button">取消</button>
+        <button class="primary" id="btnPreviewOk" type="button">确认写回</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const TELEOP_BITS = [1, 2, 4]; // 专家摇操 = 数采自由+定制+生成（后端无独立 bit，存 1|2|4）
+    const JOBS = [
+      { bits: TELEOP_BITS, n: "专家摇操" },
+      { v: 1, n: "数采自由" },
+      { v: 2, n: "数采定制" },
+      { v: 4, n: "数采生成" },
+      { v: 8, n: "数采恢复" },
+      { v: 16, n: "纯推理" },
+      { v: 32, n: "推理接管" },
+      { v: 64, n: "推理评测" },
+      { v: 128, n: "强化学习" },
+    ];
+    const BODIES = [
+      { v: "with_body", n: "有本体" },
+      { v: "no_body", n: "无本体" },
+    ];
+    const CAT_STYLE = {
+      qualified: { color: "#059669", desc: "合格（通常全类型通用）" },
+      minor_defect: { color: "#d97706", desc: "瑕疵二级标签" },
+      error: { color: "#dc2626", desc: "错误二级标签" },
+      device_error: { color: "#7c3aed", desc: "设备异常二级标签" },
+    };
+    const TREE_COLOR = { qc_type: "#dc2626", collection_task_label: "#2563eb", annotation_task_label: "#0891b2", common_scene: "#059669" };
+    const PALETTE = ["#2563eb", "#7c3aed", "#0891b2", "#db2777", "#059669", "#d97706", "#dc2626"];
+
+    let root = null;
+    let sourceLabel = ""; // 当前数据来源（仓库路径 / 导入文件名）
+    let originalText = ""; // 仓库当前内容（加载时原文，用于 diff）
+    let pendingText = ""; // 待写回的 compact 文本
+    let snapshot = null; // 加载快照：变更摘要与 dirty 判定的基准
+    let dirty = false;
+    let dupCodes = new Set(); // 全文件重复 code（行内标红）
+    let knownModels = new Set(); // device_models 已知型号（config.app.yaml 白名单 + 文件内已用）
+    const warnedModels = new Set(); // 本次会话已提示过的新型号
+
+    let selectedNode = null; // 右侧面板当前编辑的节点
+    let selCtx = null; // { level, color, isQC, isRoot, parent }
+    let panelMode = "edit"; // edit / add
+    let expanded = new Set(); // 展开的容器节点 code
+    let selected = new Set(); // 勾选的质检叶子 code（批量操作）
+    let searchMode = false;
+    let searchShow = null; // 搜索时可见节点集合
+
+    const $ = (id) => document.getElementById(id);
+    const toast = (msg, type = "info") => {
+      const el = $("toast");
+      el.textContent = msg;
+      el.className = "toast show " + type;
+      clearTimeout(toast._t);
+      toast._t = setTimeout(() => el.classList.remove("show"), 2400);
+    };
+    const busy = (btn, label, fn) => {
+      btn.disabled = true;
+      const old = btn.textContent;
+      btn.textContent = label;
+      return Promise.resolve(fn()).finally(() => {
+        btn.disabled = false;
+        btn.textContent = old;
+      });
+    };
+    function showSkeleton() {
+      $("empty").style.display = "none";
+      const body = $("tblBody");
+      body.innerHTML = "";
+      const widths = [34, 58, 42, 26, 52, 38];
+      for (let i = 0; i < 6; i++) {
+        const r = document.createElement("div");
+        r.className = "skel-row";
+        r.innerHTML = `<div class="skel-bar" style="width:${widths[i]}%"></div><div class="skel-bar" style="flex:1"></div>`;
+        body.appendChild(r);
+      }
+    }
+
+    function markDirty() {
+      dirty = true;
+      $("dirtyBadge").style.display = "";
+    }
+    function clearDirty() {
+      dirty = false;
+      $("dirtyBadge").style.display = "none";
+    }
+    window.addEventListener("beforeunload", (e) => {
+      if (dirty) { e.preventDefault(); e.returnValue = ""; }
+    });
+
+    // 数据变更后统一入口：标脏 + 重绘树表格（右侧面板由调用方按需重绘）
+    function mutate() {
+      markDirty();
+      renderTreeTable();
+    }
+
+    // 全文件重复 code（tag_code 全库唯一，跨树重复同样标出）
+    function computeDupCodes() {
+      const counts = new Map();
+      const walk = (n) => { if (n.code) counts.set(n.code, (counts.get(n.code) || 0) + 1); (n.children || []).forEach(walk); };
+      for (const t of root?.trees || []) walk(t);
+      dupCodes = new Set();
+      for (const [c, n] of counts) if (n > 1) dupCodes.add(c);
+      return [...dupCodes];
+    }
+
+    // 收集文件内已用型号，与 config.app.yaml 白名单共同构成拼写校验集
+    function collectFileModels() {
+      const walk = (n) => { (n.device_scope?.device_models || []).forEach((m) => knownModels.add(m)); (n.children || []).forEach(walk); };
+      (root?.trees || []).forEach(walk);
+    }
+
+    // device_models 输入拼写软校验：不拦截，红字提示
+    function warnUnknownModels(container, models) {
+      let hint = container.querySelector(".model-hint");
+      const unknown = models.filter((m) => !knownModels.has(m));
+      if (!unknown.length) { if (hint) hint.remove(); return; }
+      if (!hint) {
+        hint = document.createElement("div");
+        hint.className = "model-hint";
+        container.appendChild(hint);
+      }
+      hint.textContent = "未知型号（不在白名单/本文件中）：" + unknown.join(", ");
+      const fresh = unknown.filter((m) => !warnedModels.has(m));
+      if (fresh.length) {
+        fresh.forEach((m) => warnedModels.add(m));
+        toast("⚠ 未知设备型号: " + fresh.join(", "), "warn");
+      }
+    }
+
+    function ensureScope(node) {
+      if (!node.device_scope) node.device_scope = {};
+      return node.device_scope;
+    }
+
+    function countNodes(n) {
+      return 1 + (n.children || []).reduce((s, c) => s + countNodes(c), 0);
+    }
+
+    // ---------- tenant_tag 租户白名单（未写 = 仅主租户 888888） ----------
+
+    function getTenantTags(n) {
+      return Array.isArray(n?.tenant_tag) ? n.tenant_tag.map((x) => String(x).trim()).filter(Boolean) : [];
+    }
+
+    function applyTenantTag(n, arr) {
+      if (!arr.length) delete n.tenant_tag;
+      else n.tenant_tag = arr;
+    }
+
+    function allTenantTags() {
+      const s = new Set();
+      const walk = (n) => { getTenantTags(n).forEach((t) => s.add(t.toUpperCase())); (n.children || []).forEach(walk); };
+      for (const t of root?.trees || []) walk(t);
+      return [...s].sort();
+    }
+
+    // 租户可见勾选项：无本体租户固定 + 文件里出现过的其他租户 tag
+    function tenantOptions() {
+      const opts = [{ v: "BODYLESS", n: "无本体租户" }];
+      for (const t of allTenantTags()) if (t !== "BODYLESS") opts.push({ v: t, n: t });
+      return opts;
+    }
+
+    // 全文件 code（排除 except 节点自身），用于唯一性校验
+    function treeCodes(except) {
+      const out = [];
+      const walk = (n) => { if (n !== except && n.code) out.push(n.code); (n.children || []).forEach(walk); };
+      for (const t of root?.trees || []) walk(t);
+      return out;
+    }
+
+    function chipGroup(values, options, onChange) {
+      const wrap = document.createElement("div");
+      wrap.className = "chips";
+      const set = new Set(values || []);
+      for (const opt of options) {
+        const isGroup = Array.isArray(opt.bits);
+        const on0 = isGroup ? opt.bits.every((b) => set.has(b)) : set.has(opt.v);
+        const lab = document.createElement("label");
+        if (on0) lab.classList.add("on");
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = on0;
+        cb.addEventListener("change", () => {
+          if (isGroup) {
+            opt.bits.forEach((b) => (cb.checked ? set.add(b) : set.delete(b)));
+          } else {
+            if (cb.checked) set.add(opt.v);
+            else set.delete(opt.v);
+          }
+          lab.classList.toggle("on", cb.checked);
+          const arr = [...set];
+          if (typeof opt.v === "number" || isGroup) arr.sort((a, b) => a - b);
+          else arr.sort();
+          onChange(arr);
+        });
+        lab.appendChild(cb);
+        lab.appendChild(document.createTextNode(opt.n));
+        wrap.appendChild(lab);
+      }
+      return wrap;
+    }
+
+    // 1|2|4 齐时显示为「专家摇操」，其余位照旧
+    function jobDisplayNames(arr) {
+      const hasTeleop = TELEOP_BITS.every((b) => arr.includes(b));
+      const names = [];
+      if (hasTeleop) names.push("专家摇操");
+      for (const j of arr) {
+        if (hasTeleop && TELEOP_BITS.includes(j)) continue;
+        names.push(JOBS.find((x) => x.v === j)?.n || j);
+      }
+      return names;
+    }
+
+    function updateSelCount() {
+      $("selCount").textContent = `已选 ${selected.size}`;
+      const open = selected.size > 0;
+      $("bulkPanel").classList.toggle("show", open);
+      // 让表格知道自己要给浮层让位（见 .treearea.bulk-open .tbl）
+      $("treearea").classList.toggle("bulk-open", open);
+    }
+
+    // ---------- 搜索：匹配节点 + 其祖先（自动展开路径） ----------
+
+    function collectSearchSet(root, q) {
+      const show = new Set();
+      const match = (n) => `${n.code || ""} ${n.name || ""}`.toLowerCase().includes(q);
+      const walk = (n, isRoot) => {
+        let childShown = false;
+        for (const c of n.children || []) if (walk(c, false)) childShown = true;
+        const self = !isRoot && match(n);
+        if (self || childShown) show.add(n);
+        return self || childShown;
+      };
+      for (const t of root?.trees || []) walk(t, true);
+      return show;
+    }
+
+    // ---------- 树形表格渲染 ----------
+
+    function gradeBadge(g) {
+      return `<span class="grade-badge" style="background:${g === "A" ? "#dc2626" : "#d97706"}">${g}</span>`;
+    }
+
+    function appendTreeGroup(t) {
+      const body = $("tblBody");
+      const kids = t.children || [];
+      const open = searchMode ? true : expanded.has(t.code);
+      const head = document.createElement("div");
+      head.className = "tgroup" + (selectedNode === t ? " active" : "");
+      head.style.setProperty("--tc", TREE_COLOR[t.code] || "#2563eb");
+      head.__node = t;
+      const arr = document.createElement("button");
+      arr.type = "button";
+      arr.className = "tarr";
+      arr.setAttribute("aria-label", "展开或收起该树");
+      arr.textContent = open ? "▾" : "▸";
+      arr.onclick = (e) => {
+        e.stopPropagation();
+        if (expanded.has(t.code)) expanded.delete(t.code);
+        else expanded.add(t.code);
+        renderTreeTable();
+      };
+      const dot = document.createElement("span");
+      dot.className = "tdot";
+      dot.style.background = TREE_COLOR[t.code] || "#2563eb";
+      const nm = document.createElement("span");
+      nm.className = "tgroup-name";
+      nm.textContent = t.name || t.code;
+      const code = document.createElement("span");
+      code.className = "tgroup-code";
+      code.textContent = t.code;
+      const cnt = document.createElement("span");
+      cnt.className = "count";
+      cnt.textContent = (countNodes(t) - 1) + " 项";
+      cnt.style.marginLeft = "auto";
+      head.append(arr, dot, nm, code, cnt);
+      head.onclick = () => {
+        selectedNode = t;
+        selCtx = { level: 0, color: TREE_COLOR[t.code] || "#2563eb", isQC: t.code === "qc_type", isRoot: true, parent: null };
+        panelMode = "edit";
+        document.querySelectorAll("#tblBody .tgroup, #tblBody .trow").forEach((r) => r.classList.toggle("active", r.__node === t));
+        renderPanel();
+      };
+      body.appendChild(head);
+
+      let count = 1;
+      if (open) {
+        for (let i = 0; i < kids.length; i++) {
+          const c = kids[i];
+          if (searchMode && !searchShow.has(c)) continue;
+          const childColor = CAT_STYLE[c.code]?.color || PALETTE[i % PALETTE.length];
+          count += appendNode(c, { level: 1, color: childColor, isQC: t.code === "qc_type", isRoot: false, parent: t });
+        }
+      }
+      return count;
+    }
+
+    function appendNode(n, ctx) {
+      const kids = n.children || [];
+      const open = searchMode ? kids.some((c) => searchShow.has(c)) : expanded.has(n.code);
+      ctx.open = open;
+      $("tblBody").appendChild(makeRow(n, ctx));
+      let count = 1;
+      if (open) {
+        for (let i = 0; i < kids.length; i++) {
+          const c = kids[i];
+          if (searchMode && !searchShow.has(c)) continue;
+          const childColor = ctx.level === 0 ? (CAT_STYLE[c.code]?.color || PALETTE[i % PALETTE.length]) : ctx.color;
+          count += appendNode(c, { level: ctx.level + 1, color: childColor, isQC: ctx.isQC, isRoot: false, parent: n });
+        }
+      }
+      return count;
+    }
+
+    function makeRow(n, ctx) {
+      const kids = n.children || [];
+      const hasKids = kids.length > 0;
+      const isLeaf = !Array.isArray(n.children);
+      const isQcLeaf = ctx.isQC && isLeaf;
+      const scope = n.device_scope || {};
+      const grade = isQcLeaf && (n.error_grade === "A" || n.error_grade === "B") ? n.error_grade : "";
+
+      const row = document.createElement("div");
+      row.className = "trow"
+        + (isQcLeaf && selected.has(n.code) ? " selected" : "")
+        + (selectedNode === n ? " active" : "");
+      row.dataset.code = n.code || "";
+      row.__node = n;
+
+      // 勾选（仅质检叶子）
+      const c0 = document.createElement("div");
+      c0.className = "tcell";
+      if (isQcLeaf) {
+        const chk = document.createElement("input");
+        chk.type = "checkbox";
+        chk.className = "qcchk";
+        chk.dataset.code = n.code;
+        chk.setAttribute("aria-label", "勾选以批量操作");
+        chk.checked = selected.has(n.code);
+        chk.onclick = (e) => e.stopPropagation();
+        chk.addEventListener("change", () => {
+          if (chk.checked) selected.add(n.code);
+          else selected.delete(n.code);
+          row.classList.toggle("selected", chk.checked);
+          updateSelCount();
+        });
+        c0.appendChild(chk);
+      }
+      row.appendChild(c0);
+
+      // 名称 / code（按层级缩进）
+      const c1 = document.createElement("div");
+      c1.className = "tcell namecell";
+      c1.style.paddingLeft = (ctx.level * 16) + "px";
+      const nameLine = document.createElement("div");
+      nameLine.className = "nm";
+      let arr;
+      if (hasKids) {
+        arr = document.createElement("button");
+        arr.type = "button";
+        arr.className = "tarr";
+        arr.setAttribute("aria-label", "展开或收起子节点");
+        arr.textContent = ctx.open ? "▾" : "▸";
+        arr.onclick = (e) => {
+          e.stopPropagation();
+          if (expanded.has(n.code)) expanded.delete(n.code);
+          else expanded.add(n.code);
+          renderTreeTable();
+        };
+      } else {
+        arr = document.createElement("span");
+        arr.className = "tarr";
+      }
+      const dot = document.createElement("span");
+      dot.className = "tdot";
+      dot.style.background = ctx.color;
+      const nameWrap = document.createElement("span");
+      nameWrap.className = "tname";
+      nameWrap.textContent = n.name || n.code || "";
+      nameLine.append(arr, dot, nameWrap);
+      if (n.code) {
+        const codeSpan = document.createElement("span");
+        codeSpan.className = "tcode-inline";
+        codeSpan.textContent = n.code;
+        nameLine.appendChild(codeSpan);
+      }
+      if (dupCodes.has(n.code)) {
+        const dup = document.createElement("span");
+        dup.className = "dup-badge";
+        dup.textContent = "重复";
+        nameLine.appendChild(dup);
+      }
+      c1.appendChild(nameLine);
+      row.appendChild(c1);
+
+      // 摘要
+      const c2 = document.createElement("div");
+      c2.className = "tcell summary";
+      if (isQcLeaf) {
+        const jobs = scope.job_types || [];
+        const bodies = scope.body_classes || [];
+        const models = scope.device_models || [];
+        if (jobs.length) {
+          const jd = document.createElement("span");
+          jd.className = "pills";
+          for (const name of jobDisplayNames(jobs)) {
+            const p = document.createElement("span");
+            p.className = "jpill" + (name === "专家摇操" ? " teleop" : "");
+            p.textContent = name;
+            jd.appendChild(p);
+          }
+          c2.appendChild(jd);
+        }
+        if (bodies.length) {
+          const bd = document.createElement("span");
+          bd.className = "pills";
+          for (const b of bodies) {
+            const p = document.createElement("span");
+            p.className = "bpill";
+            p.textContent = BODIES.find((x) => x.v === b)?.n || b;
+            bd.appendChild(p);
+          }
+          c2.appendChild(bd);
+        }
+        if (models.length) {
+          const md = document.createElement("span");
+          md.className = "pills";
+          for (const m of models) {
+            const p = document.createElement("span");
+            p.className = "pill";
+            p.textContent = m;
+            md.appendChild(p);
+          }
+          c2.appendChild(md);
+        }
+        if (grade) c2.insertAdjacentHTML("beforeend", gradeBadge(grade));
+        if (!jobs.length && !bodies.length && !models.length && !grade) {
+          c2.textContent = "通用 · 不限";
+          c2.classList.add("muted");
+        }
+      } else if (!ctx.isRoot && isLeaf) {
+        const tt = getTenantTags(n);
+        c2.textContent = tt.length ? "租户可见 · " + tt.join(" / ") : "仅主租户 888888";
+        if (!tt.length) c2.classList.add("muted");
+      } else {
+        // 分类/容器行：摘要列留空，计数集中在树分组头
+      }
+      row.appendChild(c2);
+
+      // 行点击：选中 → 右侧面板
+      row.onclick = () => {
+        selectedNode = n;
+        selCtx = ctx;
+        panelMode = "edit";
+        document.querySelectorAll("#tblBody .tgroup, #tblBody .trow").forEach((r) => r.classList.toggle("active", r.__node === n));
+        renderPanel();
+      };
+
+      return row;
+    }
+
+    function renderTreeTable() {
+      const area = $("treearea");
+      const st = area.scrollTop;
+      const body = $("tblBody");
+      const empty = $("empty");
+      body.innerHTML = "";
+      if (!root) {
+        empty.style.display = "block";
+        empty.textContent = "请先从仓库加载或导入 JSON";
+        updateSelCount();
+        return;
+      }
+      const q = ($("q").value || "").trim().toLowerCase();
+      searchMode = !!q;
+      searchShow = searchMode ? collectSearchSet(root, q) : null;
+      let shown = 0;
+      for (const t of root.trees) {
+        if (searchMode && !searchShow.has(t)) continue;
+        shown += appendTreeGroup(t);
+      }
+      empty.style.display = shown ? "none" : "block";
+      if (!shown) empty.textContent = searchMode ? "没有匹配的标签" : "树为空";
+      updateSelCount();
+      area.scrollTop = st;
+    }
+
+    // 错误分级单选：A / B / 不分级（qc 错误标签）
+    function gradePicker(n) {
+      const wrap = document.createElement("div");
+      wrap.className = "chips";
+      const cur = n.error_grade === "A" || n.error_grade === "B" ? n.error_grade : "";
+      for (const opt of [{ v: "", n: "不分级" }, { v: "A", n: "A 级" }, { v: "B", n: "B 级" }]) {
+        const lab = document.createElement("label");
+        if (cur === opt.v) lab.classList.add("on");
+        const cb = document.createElement("input");
+        cb.type = "radio";
+        cb.name = "grade-" + n.code;
+        cb.checked = cur === opt.v;
+        cb.addEventListener("change", () => {
+          if (!cb.checked) return;
+          if (opt.v) n.error_grade = opt.v;
+          else delete n.error_grade;
+          mutate();
+        });
+        lab.appendChild(cb);
+        lab.appendChild(document.createTextNode(opt.n));
+        wrap.appendChild(lab);
+      }
+      return wrap;
+    }
+
+    // ---------- 右侧编辑面板 ----------
+
+    function mkBtn(text, cls) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = cls;
+      b.textContent = text;
+      return b;
+    }
+
+    function mkField(label, id, ph, val) {
+      const f = document.createElement("div");
+      f.className = "field";
+      f.innerHTML = `<div class="label">${label}</div>`;
+      const inp = document.createElement("input");
+      inp.type = "text";
+      inp.id = id;
+      inp.placeholder = ph;
+      inp.value = val;
+      f.appendChild(inp);
+      return f;
+    }
+
+    function mkErr() {
+      const e = document.createElement("div");
+      e.className = "form-err";
+      e.id = "panelErr";
+      e.style.display = "none";
+      return e;
+    }
+
+    function showPanelErr(msg) {
+      const e = $("panelErr");
+      if (!e) return;
+      e.textContent = msg;
+      e.style.display = "";
+    }
+
+    function saveRename() {
+      const n = selectedNode;
+      const code = $("inp-code").value.trim();
+      const name = $("inp-name").value.trim();
+      if (!/^[a-z][a-z0-9_]*$/.test(code)) return showPanelErr("code 需小写字母开头，仅含小写字母/数字/下划线");
+      if (!name) return showPanelErr("请填写中文名");
+      if (treeCodes(n).includes(code)) return showPanelErr("code 已存在: " + code);
+      const oldCode = n.code;
+      n.code = code;
+      n.name = name;
+      if (selected.has(oldCode)) { selected.delete(oldCode); selected.add(code); }
+      if (expanded.has(oldCode)) { expanded.delete(oldCode); expanded.add(code); }
+      computeDupCodes();
+      markDirty();
+      renderTreeTable();
+      renderPanel();
+      toast("已修改，尚未写回");
+    }
+
+    function deleteSelected() {
+      const n = selectedNode;
+      if (!n || !selCtx || selCtx.isRoot) return;
+      const kids = countNodes(n) - 1;
+      if (!confirm(`删除「${n.name}」(${n.code})${kids ? `，含 ${kids} 个子节点` : ""}？\n仅在内存中移除，点「写回仓库」后才生效。`)) return;
+      const parr = selCtx.parent.children;
+      parr.splice(parr.indexOf(n), 1);
+      if (selected.has(n.code)) selected.delete(n.code);
+      expanded.delete(n.code);
+      computeDupCodes();
+      markDirty();
+      selectedNode = null;
+      selCtx = null;
+      renderTreeTable();
+      renderPanel();
+      toast("已删除，尚未写回");
+    }
+
+    function renderRenameForm(body) {
+      const n = selectedNode;
+      body.appendChild(mkField("code", "inp-code", "如 lens_dirty", n.code || ""));
+      body.appendChild(mkField("中文名", "inp-name", "如 镜头污渍", n.name || ""));
+      body.appendChild(mkErr());
+      const row = document.createElement("div");
+      row.className = "p-inline";
+      const save = mkBtn("保存", "primary");
+      save.onclick = saveRename;
+      row.appendChild(save);
+      body.appendChild(row);
+    }
+
+    function renderAddForm(body) {
+      const parent = selectedNode;
+      const info = document.createElement("div");
+      info.className = "p-info";
+      info.textContent = `在「${parent.name || parent.code}」下新增${selCtx.isRoot ? "分类" : "子节点"}`;
+      body.appendChild(info);
+      body.appendChild(mkField("code", "inp-code", "如 lens_dirty", ""));
+      body.appendChild(mkField("中文名", "inp-name", "如 镜头污渍", ""));
+      body.appendChild(mkErr());
+      const row = document.createElement("div");
+      row.className = "p-inline";
+      const add = mkBtn("添加", "primary");
+      add.onclick = () => {
+        const code = $("inp-code").value.trim();
+        const name = $("inp-name").value.trim();
+        if (!/^[a-z][a-z0-9_]*$/.test(code)) return showPanelErr("code 需小写字母开头，仅含小写字母/数字/下划线");
+        if (!name) return showPanelErr("请填写中文名");
+        if (treeCodes().includes(code)) return showPanelErr("code 已存在: " + code);
+        const child = selCtx.isRoot ? { code, name, children: [] } : { code, name };
+        if (!parent.children) parent.children = [];
+        parent.children.push(child);
+        computeDupCodes();
+        markDirty();
+        expanded.add(parent.code);
+        selectedNode = child;
+        selCtx = { level: selCtx.level + 1, color: selCtx.color, isQC: selCtx.isQC, isRoot: false, parent };
+        panelMode = "edit";
+        renderTreeTable();
+        renderPanel();
+        toast("已添加，尚未写回");
+      };
+      const cancel = mkBtn("取消", "ghost");
+      cancel.onclick = () => { panelMode = "edit"; renderPanel(); };
+      row.append(add, cancel);
+      body.appendChild(row);
+    }
+
+    function renderQcFields(body, n) {
+      const scope = n.device_scope || {};
+
+      const f0 = document.createElement("div");
+      f0.className = "field";
+      f0.innerHTML = `<div class="label">错误分级（A/B 级）</div>`;
+      f0.appendChild(gradePicker(n));
+      body.appendChild(f0);
+
+      const f1 = document.createElement("div");
+      f1.className = "field";
+      f1.innerHTML = `<div class="label">任务类型（不勾 = 通用）</div>`;
+      f1.appendChild(chipGroup(scope.job_types || [], JOBS, (arr) => {
+        const s = ensureScope(n);
+        if (!arr.length) delete s.job_types;
+        else s.job_types = arr;
+        mutate();
+      }));
+      body.appendChild(f1);
+
+      const f2 = document.createElement("div");
+      f2.className = "field";
+      f2.innerHTML = `<div class="label">本体分类</div>`;
+      f2.appendChild(chipGroup(scope.body_classes || [], BODIES, (arr) => {
+        const s = ensureScope(n);
+        if (!arr.length) delete s.body_classes;
+        else s.body_classes = arr;
+        mutate();
+      }));
+      body.appendChild(f2);
+
+      const f3 = document.createElement("div");
+      f3.className = "field";
+      f3.innerHTML = `<div class="label">设备型号限制</div>`;
+      const inp = document.createElement("input");
+      inp.type = "text";
+      inp.placeholder = "留空不限 · 例 RD001_EGO, RD001_VIO";
+      inp.value = (scope.device_models || []).join(", ");
+      inp.addEventListener("change", () => {
+        const s = ensureScope(n);
+        const models = inp.value.split(/[,，\s]+/).map((x) => x.trim()).filter(Boolean);
+        if (!models.length) delete s.device_models;
+        else s.device_models = models;
+        markDirty();
+        renderTreeTable();
+        warnUnknownModels(f3, models);
+      });
+      f3.appendChild(inp);
+      body.appendChild(f3);
+    }
+
+    function renderTenantFields(body, n) {
+      const f = document.createElement("div");
+      f.className = "field";
+      f.innerHTML = `<div class="label">租户可见（勾选 = 该租户可见；不勾 = 仅主租户）</div>`;
+      f.appendChild(chipGroup(getTenantTags(n), tenantOptions(), (arr) => {
+        applyTenantTag(n, arr);
+        mutate();
+      }));
+      body.appendChild(f);
+    }
+
+    function renderPanel() {
+      const empty = $("panelEmpty");
+      const body = $("panelBody");
+      if (!selectedNode || !selCtx) {
+        empty.style.display = "";
+        body.style.display = "none";
+        body.innerHTML = "";
+        return;
+      }
+      empty.style.display = "none";
+      body.style.display = "";
+      body.innerHTML = "";
+      const n = selectedNode;
+      const ctx = selCtx;
+      const isLeaf = !Array.isArray(n.children);
+      const isQcLeaf = ctx.isQC && isLeaf;
+
+      const head = document.createElement("div");
+      head.className = "p-head";
+      const type = document.createElement("span");
+      type.className = "ptype";
+      type.style.background = ctx.color;
+      type.textContent = ctx.isRoot ? "标签树" : (ctx.isQC ? (isLeaf ? "质检标签" : "分类") : (isLeaf ? "标签" : "分类"));
+      const nm = document.createElement("b");
+      nm.className = "p-name";
+      nm.textContent = n.name || n.code || "";
+      const cd = document.createElement("span");
+      cd.className = "p-code";
+      cd.textContent = n.code || "";
+      head.append(type, nm, cd);
+      body.appendChild(head);
+
+      const appendActions = () => {
+        const a = document.createElement("div");
+        a.className = "p-actions";
+        if (ctx.isRoot) {
+          const add = mkBtn("＋ 新增分类", "primary");
+          add.onclick = () => { panelMode = "add"; renderPanel(); };
+          a.appendChild(add);
+        } else {
+          if (!isQcLeaf) {
+            const add = mkBtn("＋ 新增子节点", "primary");
+            add.onclick = () => { panelMode = "add"; renderPanel(); };
+            a.appendChild(add);
+          }
+          const del = mkBtn("删除", "btn-danger");
+          del.onclick = deleteSelected;
+          a.appendChild(del);
+        }
+        body.appendChild(a);
+      };
+
+      if (ctx.isRoot) {
+        const info = document.createElement("div");
+        info.className = "p-info";
+        info.textContent = `${countNodes(n) - 1} 个子节点 · 树根不可改名或删除`;
+        body.appendChild(info);
+        appendActions();
+        return;
+      }
+
+      if (panelMode === "add") renderAddForm(body);
+      else renderRenameForm(body);
+
+      if (isQcLeaf) renderQcFields(body, n);
+      else if (!ctx.isQC && isLeaf) renderTenantFields(body, n);
+
+      appendActions();
+    }
+
+    // ---------- 加载 / 导入 ----------
+
+    function setData(data, pathLabel) {
+      root = data;
+      computeDupCodes();
+      selectedNode = null;
+      selCtx = null;
+      panelMode = "edit";
+      selected.clear();
+      expanded.clear();
+      const firstTree = (root?.trees || [])[0];
+      if (firstTree) expanded.add(firstTree.code);
+      const total = (root?.trees || []).reduce((s, t) => s + countNodes(t) - 1, 0);
+      $("status").textContent = `${pathLabel || "内存"} · ${(root?.trees || []).length} 棵树 · ${total} 个节点`;
+      $("btnExport").disabled = !root;
+      $("btnSaveRepo").disabled = !root;
+      renderTreeTable();
+      renderPanel();
+    }
+
+    function selectedNodes() {
+      const qcTree = (root?.trees || []).find((t) => t.code === "qc_type");
+      const map = new Map();
+      const walk = (n) => { if (!Array.isArray(n.children)) map.set(n.code, n); (n.children || []).forEach(walk); };
+      if (qcTree) walk(qcTree);
+      return [...selected].map((code) => map.get(code)).filter(Boolean);
+    }
+
+    function checkDuplicates() {
+      // dupCodes 已由 setData → computeDupCodes 计算
+      // 延后弹出，避免被「已加载 / 已导入」toast 覆盖
+      if (dupCodes.size) setTimeout(() => toast("⚠ 文件存在重复 code: " + [...dupCodes].join(", "), "warn"), 2300);
+    }
+
+    // bulk jobs
+    (function initBulk() {
+      const wrap = $("bulkJobs");
+      for (const opt of JOBS) {
+        const lab = document.createElement("label");
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.value = opt.bits ? opt.bits.join(",") : String(opt.v);
+        cb.className = "bulkJob";
+        lab.appendChild(cb);
+        lab.appendChild(document.createTextNode(opt.n));
+        wrap.appendChild(lab);
+      }
+    })();
+
+    $("btnLoadRepo").onclick = () => busy($("btnLoadRepo"), "加载中…", async () => {
+      showSkeleton();
+      try {
+        const r = await fetch("/api/load");
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || r.statusText);
+        setData(j.data, j.path);
+        sourceLabel = j.path;
+        originalText = j.text || "";
+        snapshot = structuredClone(j.data);
+        collectFileModels();
+        clearDirty();
+        checkDuplicates();
+        toast("已从仓库加载", "ok");
+      } catch (e) {
+        toast("加载失败: " + e.message, "error");
+      }
+    });
+
+    // ---------- 写回预览（行级 diff，确认后才落盘） ----------
+
+    function lineDiff(a, b) {
+      const n = a.length, m = b.length;
+      const dp = Array.from({ length: n + 1 }, () => new Uint32Array(m + 1));
+      for (let i = n - 1; i >= 0; i--)
+        for (let j = m - 1; j >= 0; j--)
+          dp[i][j] = a[i] === b[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1]);
+      const ops = [];
+      let i = 0, j = 0;
+      while (i < n && j < m) {
+        if (a[i] === b[j]) { ops.push({ t: "ctx", s: a[i] }); i++; j++; }
+        else if (dp[i + 1][j] >= dp[i][j + 1]) { ops.push({ t: "del", s: a[i] }); i++; }
+        else { ops.push({ t: "add", s: b[j] }); j++; }
+      }
+      while (i < n) ops.push({ t: "del", s: a[i++] });
+      while (j < m) ops.push({ t: "add", s: b[j++] });
+      return ops;
+    }
+
+    function renderDiff(ops) {
+      const box = $("previewDiff");
+      box.innerHTML = "";
+      if (!ops.some((o) => o.t !== "ctx")) {
+        box.innerHTML = `<div class="diff-line diff-skip">与仓库当前内容一致，无变化</div>`;
+        return;
+      }
+      const CTX = 3;
+      const keep = new Array(ops.length).fill(false);
+      ops.forEach((o, idx) => {
+        if (o.t !== "ctx") {
+          for (let k = Math.max(0, idx - CTX); k <= Math.min(ops.length - 1, idx + CTX); k++) keep[k] = true;
+        }
+      });
+      let skipped = 0;
+      const flush = () => {
+        if (skipped > 0) {
+          const d = document.createElement("div");
+          d.className = "diff-line diff-skip";
+          d.textContent = `… 省略 ${skipped} 行无变化 …`;
+          box.appendChild(d);
+          skipped = 0;
+        }
+      };
+      ops.forEach((o, idx) => {
+        if (!keep[idx]) { skipped++; return; }
+        flush();
+        const d = document.createElement("div");
+        d.className = "diff-line diff-" + o.t;
+        d.textContent = (o.t === "add" ? "+ " : o.t === "del" ? "- " : "  ") + o.s;
+        box.appendChild(d);
+      });
+      flush();
+    }
+
+    // ---------- 变更摘要（相对加载快照的标签级 diff） ----------
+
+    const fmtScopeJobs = (arr) => (arr && arr.length ? jobDisplayNames(arr).join("、") : "通用");
+    const fmtBodies = (arr) => (arr && arr.length ? arr.map((b) => BODIES.find((x) => x.v === b)?.n || b).join("、") : "不限");
+    const fmtModels = (arr) => (arr && arr.length ? arr.join(", ") : "不限");
+    const fmtTenants = (v) => (Array.isArray(v) && v.length ? v.join(" / ") : "仅主租户");
+    const fmtPlain = (v) => {
+      if (v === undefined || v === null || v === "") return "—";
+      const s = String(v);
+      return s.length > 60 ? s.slice(0, 60) + "…" : s;
+    };
+
+    function diffSnapshot(oldRoot, newRoot) {
+      const idx = (r) => {
+        const m = new Map();
+        const walk = (n, path) => {
+          const p = [...path, n.name || n.code || "?"];
+          if (n.code) {
+            if (!m.has(n.code)) m.set(n.code, []);
+            m.get(n.code).push({ node: n, path: p });
+          }
+          (n.children || []).forEach((c) => walk(c, p));
+        };
+        (r?.trees || []).forEach((t) => walk(t, []));
+        return m;
+      };
+      const sameArr = (a, b) => JSON.stringify([...(a || [])].sort()) === JSON.stringify([...(b || [])].sort());
+      const oldM = idx(oldRoot);
+      const newM = idx(newRoot);
+      const out = [];
+      const match = (list, path) => list.find((e) => e.path[0] === path[0]) || list[0];
+      for (const [code, news] of newM) {
+        const olds = oldM.get(code) || [];
+        for (const ne of news) {
+          const oe = olds.length ? match(olds, ne.path) : null;
+          if (!oe) {
+            out.push({ t: "add", path: ne.path.join(" / "), code });
+            continue;
+          }
+          const changes = [];
+          const cmp = (label, a, b) => {
+            const sa = fmtPlain(a), sb = fmtPlain(b);
+            if (sa !== sb) changes.push({ label, from: sa, to: sb });
+          };
+          cmp("名称", oe.node.name, ne.node.name);
+          cmp("错误分级", oe.node.error_grade, ne.node.error_grade);
+          cmp("描述", oe.node.description, ne.node.description);
+          if (!sameArr(oe.node.tenant_tag, ne.node.tenant_tag)) changes.push({ label: "租户可见", from: fmtTenants(oe.node.tenant_tag), to: fmtTenants(ne.node.tenant_tag) });
+          const sa = oe.node.device_scope || {};
+          const sb = ne.node.device_scope || {};
+          if (!sameArr(sa.job_types, sb.job_types)) changes.push({ label: "任务类型", from: fmtScopeJobs(sa.job_types), to: fmtScopeJobs(sb.job_types) });
+          if (!sameArr(sa.body_classes, sb.body_classes)) changes.push({ label: "本体", from: fmtBodies(sa.body_classes), to: fmtBodies(sb.body_classes) });
+          if (!sameArr(sa.device_models, sb.device_models)) changes.push({ label: "设备型号", from: fmtModels(sa.device_models), to: fmtModels(sb.device_models) });
+          if (oe.path.join(" / ") !== ne.path.join(" / ")) changes.push({ label: "位置", from: oe.path.join(" / "), to: ne.path.join(" / ") });
+          if (changes.length) out.push({ t: "change", path: ne.path.join(" / "), code, changes });
+        }
+      }
+      for (const [code, olds] of oldM) {
+        const news = newM.get(code) || [];
+        for (const oe of olds) {
+          if (!news.length || !match(news, oe.path)) out.push({ t: "del", path: oe.path.join(" / "), code });
+        }
+      }
+      return out;
+    }
+
+    function renderSummary(entries) {
+      const box = $("previewSummary");
+      box.innerHTML = "";
+      if (!snapshot) return;
+      if (!entries.length) {
+        box.innerHTML = `<div class="diff-line diff-skip">无标签级变更</div>`;
+        return;
+      }
+      const counts = { add: 0, del: 0, change: 0 };
+      entries.forEach((e) => counts[e.t]++);
+      const head = document.createElement("div");
+      head.style.cssText = "font-size:.85rem;font-weight:600;margin-bottom:.55rem";
+      head.textContent = `变更摘要：新增 ${counts.add} · 删除 ${counts.del} · 修改 ${counts.change}`;
+      box.appendChild(head);
+      const TAG = { add: ["新增", "var(--ok)"], del: ["删除", "var(--danger)"], change: ["修改", "var(--warn)"] };
+      for (const e of entries) {
+        const div = document.createElement("div");
+        div.className = "sum-line sum-" + e.t;
+        const [label, color] = TAG[e.t];
+        let html = `<span class="sum-tag" style="background:${color}">${label}</span><b>${e.code}</b><span class="sum-path">${e.path}</span>`;
+        if (e.changes) {
+          html += `<div class="sum-fields">` + e.changes.map((c) => `${c.label}: ${c.from} → ${c.to}`).join("<br>") + `</div>`;
+        }
+        div.innerHTML = html;
+        box.appendChild(div);
+      }
+    }
+
+    async function openPreview() {
+      if (!root) return;
+      try {
+        const r = await fetch("/api/format", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ data: root }),
+        });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || r.statusText);
+        pendingText = j.text;
+      } catch (e) {
+        toast("格式化失败: " + e.message, "error");
+        return;
+      }
+      const ops = lineDiff((originalText || "").split("\n"), pendingText.split("\n"));
+      const adds = ops.filter((o) => o.t === "add").length;
+      const dels = ops.filter((o) => o.t === "del").length;
+      $("previewMeta").textContent = `+${adds} / -${dels} 行 · 相对仓库当前内容`;
+      renderSummary(snapshot ? diffSnapshot(snapshot, root) : []);
+      renderDiff(ops);
+      $("previewMask").classList.add("show");
+    }
+
+    $("btnPreviewCancel").onclick = () => $("previewMask").classList.remove("show");
+    $("previewMask").onclick = (e) => { if (e.target === $("previewMask")) $("previewMask").classList.remove("show"); };
+    $("btnPreviewOk").onclick = () => busy($("btnPreviewOk"), "写回中…", async () => {
+      try {
+        const r = await fetch("/api/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ data: root }),
+        });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || r.statusText);
+        originalText = pendingText;
+        snapshot = structuredClone(root);
+        clearDirty();
+        $("previewMask").classList.remove("show");
+        toast("已写回", "ok");
+      } catch (e) {
+        toast("保存失败: " + e.message, "error");
+      }
+    });
+
+    $("btnSaveRepo").onclick = () => busy($("btnSaveRepo"), "生成预览…", openPreview);
+
+    $("fileIn").onchange = async (ev) => {
+      const f = ev.target.files?.[0];
+      if (!f) return;
+      const data = JSON.parse(await f.text());
+      setData(data, f.name);
+      sourceLabel = f.name;
+      snapshot = structuredClone(data);
+      collectFileModels();
+      clearDirty();
+      checkDuplicates();
+      toast("已导入", "ok");
+    };
+
+    $("btnExport").onclick = async () => {
+      if (!root) return;
+      let text;
+      try {
+        // 与写回仓库共用同一套 compact serializer
+        const r = await fetch("/api/format", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ data: root }),
+        });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || r.statusText);
+        text = j.text;
+      } catch (e) {
+        toast("紧凑格式化失败，降级为普通导出", "warn");
+        text = JSON.stringify(root, null, 2) + "\n";
+      }
+      const blob = new Blob([text], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "system_tags.json";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    };
+
+    // 搜索防抖：原来每次按键都跑 renderTreeTable，而它清空 tblBody 后全量重建
+    // 121 行 × 18 次 createElement ≈ 2178 次 DOM 创建。输一个词就是上万次。
+    // 120ms 是打字暂停的典型值：再短没效果，再长会感觉迟。
+    let searchTimer = 0;
+    $("q").oninput = () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => {
+        // 重建后恢复滚动位置由 renderTreeTable 自己处理（它已保存 area.scrollTop）
+        renderTreeTable();
+      }, 120);
+    };
+
+    $("btnSelAll").onclick = () => {
+      const codes = [...document.querySelectorAll("#tblBody input.qcchk")].map((c) => c.dataset.code);
+      codes.forEach((c) => selected.add(c));
+      renderTreeTable();
+    };
+    $("btnSelNone").onclick = () => {
+      selected.clear();
+      renderTreeTable();
+    };
+
+    $("btnBulkSet").onclick = () => {
+      const nodes = selectedNodes();
+      if (!nodes.length) return toast("先勾选行");
+      const vals = [...new Set([...document.querySelectorAll(".bulkJob:checked")].flatMap((el) => el.value.split(",").map(Number)))].sort((a, b) => a - b);
+      for (const n of nodes) {
+        const s = ensureScope(n);
+        if (!vals.length) delete s.job_types;
+        else s.job_types = vals;
+      }
+      markDirty();
+      renderTreeTable();
+      toast(`已更新 ${nodes.length} 条`, "ok");
+    };
+    $("btnBulkClear").onclick = () => {
+      const nodes = selectedNodes();
+      if (!nodes.length) return toast("先勾选行");
+      for (const n of nodes) {
+        if (n.device_scope) delete n.device_scope.job_types;
+      }
+      markDirty();
+      renderTreeTable();
+      toast(`已清成通用 ${nodes.length} 条`, "ok");
+    };
+
+    // device_models 拼写校验白名单（失败降级为仅文件内已用型号）
+    fetch("/api/device-models").then((r) => r.json()).then((j) => {
+      (j.data || []).forEach((m) => knownModels.add(m));
+    }).catch(() => {});
+
+    $("btnLoadRepo").click();
+  </script>
+</body>
+</html>

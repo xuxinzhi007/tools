@@ -1,0 +1,84 @@
+#!/bin/bash
+# Cursor sessionStart：把本技能的绑定注入当前会话。不依赖用户说出触发词。
+# 输出只写 additional_context。失败时仍吐出一行说明，避免空输出。
+
+case "$0" in
+  */*|*\\*) SCRIPT_DIR="$(cd "${0%[/\\]*}" && pwd)" ;;
+  *) SCRIPT_DIR="$(pwd)" ;;
+esac
+SKILL_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+
+# 不直接执行 workflow_next.py：Windows 上 shebang 指向的 /usr/bin/python3 常常不存在。
+. "${SKILL_ROOT}/scripts/find_python.sh"
+PY="$(dw_python 2>/dev/null || true)"
+
+escape_for_json() {
+  local s="$1"
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  s="${s//$'\n'/\\n}"
+  s="${s//$'\r'/\\r}"
+  s="${s//$'\t'/\\t}"
+  printf '%s' "$s"
+}
+
+repo=""
+if git_root="$(git -C "${PWD}" rev-parse --show-toplevel 2>/dev/null)"; then
+  repo="$git_root"
+elif git_root="$(git -C "${SKILL_ROOT}" rev-parse --show-toplevel 2>/dev/null)"; then
+  repo="$git_root"
+fi
+
+next=""
+err=""
+if [ -z "$PY" ]; then
+  err="没有找到可用的 python（试过 py -3 / python3 / python），没有读取 specs/*/run.json"
+elif [ -n "$repo" ]; then
+  # $PY 可能是 "py -3"，不要加引号。
+  if ! next="$($PY "${SKILL_ROOT}/scripts/workflow_next.py" next --repo "$repo" 2>"${TMPDIR:-/tmp}/data-workflow-next.err")"; then
+    err="$(cat "${TMPDIR:-/tmp}/data-workflow-next.err" 2>/dev/null || true)"
+  fi
+else
+  err="找不到 git 根，没有读取 specs/*/run.json"
+fi
+
+# 发现未完成运行，不把它变成当前这句话的任务。
+# next 的 NEED / WAIT / DO / OPEN 只在用户继续那条运行时再看。
+notice_for() {
+  local next="$1"
+  local first feature status summary
+  first="$(printf '%s\n' "$next" | head -n 1)"
+  case "$first" in
+    LAST|LAST\ *|NO_RUN|NO_RUN\ *|"")
+      return
+      ;;
+    MANY)
+      printf '%s\n' "NOTICE 多条未完成" \
+        "当前这句话是别的需求时，先做当前需求。用户要继续其中一条时，再指定 next。不要把它们标成完成或放弃。"
+      printf '%s\n' "$next" | awk 'NR>1 && $1!="REPO" && $1!="指定：" && $1!="指定:" { print }'
+      return
+      ;;
+  esac
+  feature="$(printf '%s\n' "$first" | awk '{ print $2 }')"
+  status="$(printf '%s\n' "$first" | awk '{ print $4 }')"
+  summary="$(printf '%s\n' "$next" | awk '/^QUESTION /{ sub(/^QUESTION /,""); print; exit }')"
+  if [ -z "$summary" ]; then
+    summary="$(printf '%s\n' "$next" | awk '/^STAGE /{ sub(/^STAGE /,""); print; exit }')"
+  fi
+  if [ -z "$summary" ]; then
+    summary="无"
+  fi
+  printf '%s\n' \
+    "NOTICE ${feature} ${status}" \
+    "RECORD specs/${feature}/run.json" \
+    "摘要：${summary}" \
+    "这是尚未结束的另一条运行。用户要继续它时，再跑 next，只做它打印的那一件。当前这句话是别的需求时，先做当前需求。和这条是同一件事时，先做这条。不要把它标成完成或放弃。"
+}
+
+text="$(notice_for "$next")"
+if [ -n "$err" ]; then
+  text="${text}
+workflow_next 失败：${err}"
+fi
+
+printf '{\n  "additional_context": "%s"\n}\n' "$(escape_for_json "$text")"
