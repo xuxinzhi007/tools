@@ -133,7 +133,7 @@ services/data-test-platform/
 │   ├── config/             # 配置管理与多环境预设
 │   ├── openapi/            # OpenAPI 3.0 解析器与 Schema Mock 生成引擎
 │   ├── proxy/              # HTTP 接口测试代理 (解决跨域与耗时测量)
-│   ├── logger/             # 日志解析引擎、文件 Tailer、WebSocket 广播 Hub、SQL 性能统计
+│   ├── logger/             # 日志解析引擎、文件/K8s Tailer、WebSocket Hub、SQL 指纹聚合
 │   └── server/             # REST API、WebSocket 路由与静态资源服务
 └── web/
     └── dist/               # 前端单页面应用 (嵌入到 Go 二进制中)
@@ -141,3 +141,35 @@ services/data-test-platform/
         ├── app.js          # 前端交互与 WebSocket 处理
         └── style.css       # 响应式暗黑主题样式
 ```
+
+---
+
+## K8s 日志源（可选加载）
+
+默认不加载。不传 `--k8s-config` 时程序**完全不会调用 kubectl**，只跑原有的本地文件 + DevOps 云端日志。
+
+启用后日志来源下拉框会多出 `K8s Pod` 选项，选中即开始 `kubectl logs -f` 跟随集群 pod 输出。
+
+```bash
+cp k8s.example.json k8s.json    # 填 kubeconfig / context / environments
+go run . --k8s-config k8s.json
+```
+
+配置字段：
+
+| 字段 | 说明 |
+|---|---|
+| `enabled` | `false` 或文件不存在 = 禁用，前端选项灰掉 |
+| `kubectl` | 可执行文件路径，默认 `kubectl` |
+| `kubeconfig` / `context` | 透传给 kubectl |
+| `app` | label selector 的 `app=` 值，默认 `data-service` |
+| `container` | 多容器 pod 时指定 |
+| `tail` | 首连回填行数，默认 200；重连用 `tail=0` 避免重复 |
+| `environments[]` | 可选环境列表，`lane` 留空 = 不过滤，看全部 pod |
+
+行为约定：
+
+- pod 滚动发布时 kubectl 会被终止，**自动重连**（1s 退避）
+- 切走 K8s 源时立即 `SIGTERM` kubectl，不留孤儿进程
+- 进程收到 `SIGINT`/`SIGTERM` 时会一并收掉 kubectl
+- kubectl 的 stderr 只保留前 64 KiB，错误显示在来源徽章上

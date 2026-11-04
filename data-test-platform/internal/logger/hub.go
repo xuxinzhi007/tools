@@ -127,6 +127,7 @@ func (h *Hub) RegisterClient(conn *websocket.Conn) {
 }
 
 // IngestRawLine parses raw string and broadcasts it
+// IngestRawLine 解析一行原始日志并入 Hub，受 localGate 控制（本地文件源用）。
 func (h *Hub) IngestRawLine(line string) *LogEntry {
 	h.mu.RLock()
 	gate := h.localGate
@@ -134,6 +135,28 @@ func (h *Hub) IngestRawLine(line string) *LogEntry {
 	if gate != nil && !gate() {
 		return nil
 	}
+	return h.ingest(line)
+}
+
+// IngestRawLineFromSource 解析一行原始日志并打上来源标记后入 Hub，绕过 localGate。
+// K8s 这类显式选中的日志源用它 —— 必须先解析、标完字段再广播，
+// 否则 Hub 已经把 entry 推给 WebSocket 客户端，后续赋值就是数据竞争。
+func (h *Hub) IngestRawLineFromSource(line, source, podName string) *LogEntry {
+	entry := h.parser.ParseLine(line)
+	if entry == nil {
+		return nil
+	}
+	if source != "" {
+		entry.LogSource = source
+	}
+	if podName != "" {
+		entry.PodName = podName
+	}
+	h.broadcastChan <- entry
+	return entry
+}
+
+func (h *Hub) ingest(line string) *LogEntry {
 	entry := h.parser.ParseLine(line)
 	if entry != nil {
 		h.broadcastChan <- entry

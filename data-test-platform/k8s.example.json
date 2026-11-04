@@ -1,0 +1,16 @@
+{
+  "_comment": "K8s 日志源配置。不传 --k8s-config 则不加载，永远不会启动 kubectl。",
+  "enabled": true,
+  "kubectl": "kubectl",
+  "kubeconfig": "",
+  "context": "",
+  "app": "data-service",
+  "container": "",
+  "tail": 200,
+  "environments": [
+    { "name": "dev",  "namespace": "ns-cloud-dev",  "lane": "dev" },
+    { "name": "dev2", "namespace": "ns-cloud-dev",  "lane": "dev2" },
+    { "name": "test", "namespace": "ns-cloud-test", "lane": "test" },
+    { "name": "全部", "namespace": "ns-cloud-dev",  "lane": "" }
+  ]
+}

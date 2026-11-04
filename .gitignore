@@ -39,3 +39,4 @@ skills/data-workflow/config.yaml
 # 工具运行时产物
 quality-gate/workspace/
 quality-gate/tunnel.url
+data-test-platform/k8s.json

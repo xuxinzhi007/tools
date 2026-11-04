@@ -162,13 +162,29 @@ func (p *LogParser) parseJSON(line string, entry *LogEntry) bool {
 	sqlVal, hasSQL := m["sql"].(string)
 	isSQLMsg := entry.Message == "SQL Query" || entry.Message == "Slow SQL" || entry.Message == "SQL Error"
 
-	if hasSQL || isSQLMsg {
+	// Kratos JSONLogger 把 GORM 字段嵌在 gorm:{elapsed,sql,rows} 里，
+	// 而不是平铺。两种形状都要认。
+	var gormObj map[string]interface{}
+	if g, ok := m["gorm"].(map[string]interface{}); ok {
+		gormObj = g
+		if !hasSQL {
+			if s, ok := g["sql"].(string); ok && s != "" {
+				sqlVal, hasSQL = s, true
+			}
+		}
+	}
+
+	if hasSQL || isSQLMsg || gormObj != nil {
 		entry.IsSQL = true
 		entry.SQL = sqlVal
 
 		if elapsedStr, ok := m["elapsed"].(string); ok {
 			entry.Elapsed = elapsedStr
 			entry.DurationMs = parseDurationMs(elapsedStr)
+		} else if secs, ok := gormObj["elapsed"].(float64); ok {
+			// gorm 的 elapsed 是毫秒浮点数
+			entry.DurationMs = secs
+			entry.Elapsed = strconv.FormatFloat(secs, 'f', 2, 64) + "ms"
 		}
 
 		if rowsVal, ok := m["rows"]; ok {
@@ -180,6 +196,8 @@ func (p *LogParser) parseJSON(line string, entry *LogEntry) bool {
 			case int:
 				entry.Rows = int64(v)
 			}
+		} else if rowsVal, ok := gormObj["rows"].(float64); ok {
+			entry.Rows = int64(rowsVal)
 		}
 
 		if thresholdStr, ok := m["threshold"].(string); ok {

@@ -7,6 +7,9 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"data-test-platform/internal/config"
@@ -25,6 +28,7 @@ func main() {
 	logFilePath := flag.String("log", "../data-service/logs/app.log", "Path to data-service application log file to tail")
 	targetURL := flag.String("target", "", "Default target data-service address (empty = auto-detect from configs/config.app.local.yaml)")
 	slowThresholdStr := flag.String("slow-threshold", "200ms", "Threshold for slow SQL marking (e.g. 200ms, 500ms)")
+	k8sConfigPath := flag.String("k8s-config", "", "Optional JSON file enabling the K8s log source (omit to disable)")
 	flag.Parse()
 
 	slowThreshold, err := time.ParseDuration(*slowThresholdStr)
@@ -41,6 +45,12 @@ func main() {
 		cfg.CustomBaseURL = *targetURL
 		cfg.CurrentEnvID = "local"
 	}
+	// K8s 日志源是可选加载：不传 --k8s-config 时永远不启动 kubectl。
+	if *k8sConfigPath != "" {
+		if err := config.LoadK8sConfig(*k8sConfigPath, &cfg.K8s); err != nil {
+			log.Fatalf("\u274c 加载 K8s 配置失败 %s: %v", *k8sConfigPath, err)
+		}
+	}
 
 	parser := openapi.NewParser(cfg.OpenAPIPath)
 	proxyClient := proxy.NewProxy()
@@ -56,8 +66,19 @@ func main() {
 	tailer := logger.NewFileTailer(hub, cfg.LogFilePath)
 	runner := logger.NewProcessRunner(hub)
 	remotePoller := logger.NewRemoteLogPoller(cfg, hub)
+	k8sTailer := logger.NewK8sTailer(hub)
 
-	srv := server.NewServer(cfg, parser, proxyClient, hub, tailer, runner, remotePoller, staticFS)
+	srv := server.NewServer(server.Deps{
+		Config:       cfg,
+		Parser:       parser,
+		Proxy:        proxyClient,
+		Hub:          hub,
+		Tailer:       tailer,
+		Runner:       runner,
+		RemotePoller: remotePoller,
+		K8sTailer:    k8sTailer,
+		StaticFS:     staticFS,
+	})
 
 	addr := fmt.Sprintf(":%d", *port)
 	listener, err := net.Listen("tcp", addr)
@@ -86,6 +107,19 @@ func main() {
 	httpServer := &http.Server{
 		Handler: srv.Routes(),
 	}
+
+	// kubectl 是子进程，必须显式收，否则父进程退出后它会变成孤儿。
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-quit
+		fmt.Println("\n正在退出…")
+		k8sTailer.Stop()
+		tailer.Stop()
+		remotePoller.Stop()
+		_ = httpServer.Close()
+	}()
+
 	if err := httpServer.Serve(listener); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("Server stopped: %v", err)
 	}

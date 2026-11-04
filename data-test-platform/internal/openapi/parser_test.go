@@ -1,11 +1,19 @@
 package openapi
 
 import (
+	"os"
 	"testing"
 )
 
+// 这个测试依赖真实的 data-service 仓库产物，不在本仓库内。
+// 找不到就跳过，避免在独立 checkout 或 CI 里必然失败。
 func TestParseDataServiceOpenAPI(t *testing.T) {
-	p := NewParser("../../../data-service/openapi.yaml")
+	const path = "../../../data-service/openapi.yaml"
+	if _, err := os.Stat(path); err != nil {
+		t.Skipf("skipped: %s not found (%v)", path, err)
+	}
+
+	p := NewParser(path)
 	spec, err := p.ParseFromFile("")
 	if err != nil {
 		t.Fatalf("ParseFromFile error: %v", err)

@@ -38,34 +38,41 @@ type Server struct {
 	tailer       *logger.FileTailer
 	runner       *logger.ProcessRunner
 	remotePoller *logger.RemoteLogPoller
+	k8sTailer    *logger.K8sTailer
 	staticFS     embed.FS
 	httpServer   *http.Server
 }
 
+// Deps 汇集 Server 的运行时依赖，避免构造参数过长。
+type Deps struct {
+	Config       *config.Config
+	Parser       *openapi.Parser
+	Proxy        *proxy.Proxy
+	Hub          *logger.Hub
+	Tailer       *logger.FileTailer
+	Runner       *logger.ProcessRunner
+	RemotePoller *logger.RemoteLogPoller
+	K8sTailer    *logger.K8sTailer
+	StaticFS     embed.FS
+}
+
 // NewServer creates a new Server
-func NewServer(
-	cfg *config.Config,
-	parser *openapi.Parser,
-	proxyClient *proxy.Proxy,
-	hub *logger.Hub,
-	tailer *logger.FileTailer,
-	runner *logger.ProcessRunner,
-	remotePoller *logger.RemoteLogPoller,
-	staticFS embed.FS,
-) *Server {
+func NewServer(d Deps) *Server {
+	cfg := d.Config
 	s := &Server{
 		cfg:          cfg,
-		parser:       parser,
-		proxy:        proxyClient,
-		hub:          hub,
-		tailer:       tailer,
-		runner:       runner,
-		remotePoller: remotePoller,
-		staticFS:     staticFS,
+		parser:       d.Parser,
+		proxy:        d.Proxy,
+		hub:          d.Hub,
+		tailer:       d.Tailer,
+		runner:       d.Runner,
+		remotePoller: d.RemotePoller,
+		k8sTailer:    d.K8sTailer,
+		staticFS:     d.StaticFS,
 	}
 
 	// Initial load of OpenAPI spec
-	spec, err := parser.ParseFromFile(cfg.OpenAPIPath)
+	spec, err := d.Parser.ParseFromFile(cfg.OpenAPIPath)
 	if err != nil {
 		fmt.Printf("⚠️ Warning: Could not load OpenAPI file '%s': %v\n", cfg.OpenAPIPath, err)
 		fmt.Println("ℹ️ You can reload or upload an OpenAPI file later via the UI.")
@@ -108,6 +115,11 @@ func (s *Server) Routes() http.Handler {
 	mux.HandleFunc("/api/logs/remote/status", s.handleRemoteLogStatus)
 	mux.HandleFunc("/api/logs/remote/test", s.handleRemoteLogTest)
 	mux.HandleFunc("/api/logs/remote/search", s.handleRemoteLogSearch)
+
+	// K8s Log Source APIs（可选，未启用时只返回配置状态）
+	mux.HandleFunc("/api/logs/k8s/status", s.handleK8sStatus)
+	mux.HandleFunc("/api/logs/k8s/start", s.handleK8sStart)
+	mux.HandleFunc("/api/logs/k8s/stop", s.handleK8sStop)
 
 	// Config APIs
 	mux.HandleFunc("/api/config", s.handleConfig)
@@ -472,6 +484,89 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleRemoteLogStatus(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, s.remotePoller.GetStatus())
+}
+
+// k8sStatusReply 返回 K8s 日志源的可选环境与当前运行状态。
+// enabled 为 false 时前端只展示“未配置”，不会自动启动 kubectl。
+type k8sStatusReply struct {
+	Enabled      bool                  `json:"enabled"`
+	Running      bool                  `json:"running"`
+	State        string                `json:"state"`
+	Describe     string                `json:"describe,omitempty"`
+	Error        string                `json:"error,omitempty"`
+	Environments []config.K8sEnvConfig `json:"environments"`
+}
+
+func (s *Server) handleK8sStatus(w http.ResponseWriter, r *http.Request) {
+	reply := k8sStatusReply{
+		Enabled:      s.cfg.K8s.Enabled,
+		Environments: s.cfg.K8s.Environments,
+		State:        "idle",
+	}
+	if s.k8sTailer != nil {
+		running, state, describe, errMsg := s.k8sTailer.Status()
+		reply.Running = running
+		reply.State = state
+		reply.Describe = describe
+		reply.Error = errMsg
+	}
+	writeJSON(w, http.StatusOK, reply)
+}
+
+func (s *Server) handleK8sStart(w http.ResponseWriter, r *http.Request) {
+	if !s.cfg.K8s.Enabled {
+		writeJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "K8s 日志源未启用。在配置里设 k8s.enabled=true 并填好 kubeconfig。",
+		})
+		return
+	}
+	if s.k8sTailer == nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "k8s tailer 未初始化"})
+		return
+	}
+
+	var body struct {
+		Environment string `json:"environment"` // 匹配 cfg.K8s.Environments 里的 Name
+	}
+	_ = json.NewDecoder(r.Body).Decode(&body)
+
+	env := config.K8sEnvConfig{}
+	for _, e := range s.cfg.K8s.Environments {
+		if e.Name == body.Environment {
+			env = e
+			break
+		}
+	}
+	if body.Environment != "" && env.Name == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "未知环境: " + body.Environment,
+		})
+		return
+	}
+
+	// 切到 K8s 前先停掉本地与云端源，避免多条流混在一起
+	s.tailer.Stop()
+	s.remotePoller.Stop()
+
+	s.k8sTailer.Start(logger.K8sTarget{
+		Environment: env.Name,
+		Kubectl:     s.cfg.K8s.Kubectl,
+		Kubeconfig:  s.cfg.K8s.Kubeconfig,
+		Context:     s.cfg.K8s.Context,
+		Namespace:   env.Namespace,
+		App:         s.cfg.K8s.App,
+		Lane:        env.Lane,
+		Container:   s.cfg.K8s.Container,
+		Tail:        s.cfg.K8s.Tail,
+	})
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true, "environment": env.Name})
+}
+
+func (s *Server) handleK8sStop(w http.ResponseWriter, r *http.Request) {
+	if s.k8sTailer != nil {
+		s.k8sTailer.Stop()
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
 func (s *Server) handleRemoteLogTest(w http.ResponseWriter, r *http.Request) {

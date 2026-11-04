@@ -88,6 +88,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // Poll remote log status periodically
   setInterval(fetchRemoteLogStatus, 4000);
 
+  // K8s 日志源是可选的：只在后端已配置时才点亮选项，不主动启动 kubectl
+  fetchK8sStatus();
+  setInterval(fetchK8sStatus, 8000);
+
   // Keyboard shortcut: Ctrl+Enter or Cmd+Enter to send request
   document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
@@ -2371,6 +2375,17 @@ async function changeLogSource() {
   const sel = document.getElementById('log-source-select');
   if (!sel) return;
   const source = sel.value;
+
+  if (source === 'k8s') {
+    await switchToK8s();
+    return;
+  }
+
+  // 离开 K8s 源时先把 kubectl 收掉
+  if (STATE.remoteLog.log_source === 'k8s') {
+    await fetch('/api/logs/k8s/stop', { method: 'POST' });
+  }
+
   STATE.remoteLog.log_source = source;
 
   try {
@@ -2386,6 +2401,80 @@ async function changeLogSource() {
     resetLogStream();
   } catch (err) {
     showToast('切换日志来源失败: ' + err.message);
+  }
+}
+
+// ── K8s 日志源（可选加载，未配置时不会碰 kubectl）──────────────
+let k8sStatus = { enabled: false, running: false, state: 'idle', environments: [] };
+
+async function fetchK8sStatus() {
+  try {
+    const res = await fetch('/api/logs/k8s/status');
+    k8sStatus = await res.json();
+    const opt = document.getElementById('log-source-k8s-option');
+    if (opt) {
+      if (!k8sStatus.enabled) {
+        opt.disabled = true;
+        opt.textContent = 'K8s Pod (未配置)';
+      } else {
+        opt.disabled = false;
+        const n = (k8sStatus.environments || []).length;
+        opt.textContent = n ? `K8s Pod (${n} 个环境)` : 'K8s Pod (全部)';
+      }
+    }
+    if (k8sStatus.running) {
+      const badge = document.getElementById('remote-log-status-badge');
+      if (badge) {
+        badge.textContent = 'K8s ' + (k8sStatus.describe || '');
+        badge.className = 'remote-status-badge remote-status-active';
+      }
+    }
+    if (k8sStatus.state === 'error' && k8sStatus.error) {
+      showToast('K8s 日志源: ' + k8sStatus.error, true);
+    }
+  } catch (e) {
+    /* 后端未就绪时忽略 */
+  }
+}
+
+async function switchToK8s() {
+  const sel = document.getElementById('log-source-select');
+  if (!k8sStatus.enabled) {
+    showToast('K8s 日志源未启用，请在配置里设 k8s.enabled=true', true);
+    sel.value = STATE.remoteLog.log_source || 'local';
+    return;
+  }
+
+  const envs = k8sStatus.environments || [];
+  let environment = '';
+  if (envs.length > 1) {
+    const names = envs.map(e => e.name).join(' / ');
+    const pick = prompt(`选择 K8s 环境（${names}）\n留空 = 全部 pod`, envs[0].name);
+    if (pick === null) { sel.value = STATE.remoteLog.log_source || 'local'; return; }
+    environment = pick.trim();
+  } else if (envs.length === 1) {
+    environment = envs[0].name;
+  }
+
+  try {
+    const res = await fetch('/api/logs/k8s/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ environment })
+    });
+    const j = await res.json();
+    if (!res.ok || !j.ok) {
+      showToast(j.error || '启动失败', true);
+      sel.value = STATE.remoteLog.log_source || 'local';
+      return;
+    }
+    STATE.remoteLog.log_source = 'k8s';
+    showToast('已连接到 K8s' + (environment ? ' · ' + environment : ''));
+    resetLogStream();
+    setTimeout(fetchK8sStatus, 1200);
+  } catch (err) {
+    showToast('启动 K8s 日志源失败: ' + err.message, true);
+    sel.value = STATE.remoteLog.log_source || 'local';
   }
 }
 

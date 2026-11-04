@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"regexp"
@@ -47,6 +48,30 @@ type Config struct {
 
 	// Remote Cloud Log Configuration (Workflow service)
 	RemoteLog RemoteLogConfig `json:"remote_log"`
+
+	// K8s Log Source：可选。未配置时不启动 kubectl，完全不碰集群。
+	K8s K8sLogConfig `json:"k8s"`
+}
+
+// K8sLogConfig 描述 kubectl 跟随集群 pod 日志的参数。
+// Enabled 为 false 时前端只能看到选项，启动会报未配置。
+type K8sLogConfig struct {
+	Enabled    bool   `json:"enabled"`
+	Kubectl    string `json:"kubectl"`    // 默认 kubectl
+	Kubeconfig string `json:"kubeconfig"` // 留空用默认 kubeconfig
+	Context    string `json:"context"`
+	App        string `json:"app"` // 默认 data-service
+	Container  string `json:"container"`
+	Tail       int    `json:"tail"`
+	// Environments 列出可选的 lane，如 ["dev1","dev2","test"]
+	Environments []K8sEnvConfig `json:"environments"`
+}
+
+// K8sEnvConfig 一个可选环境（lane）。
+type K8sEnvConfig struct {
+	Name      string `json:"name"`      // 展示名，如 "dev2"
+	Namespace string `json:"namespace"` // 如 ns-cloud-dev
+	Lane      string `json:"lane"`      // x2robot.io/lane 的值；空 = 全部 pod
 }
 
 // RemoteLogEnvConfig holds cloud workflow project and namespace/environment for an environment
@@ -327,4 +352,26 @@ func (c *Config) GetActiveRemoteLogTarget() (string, RemoteLogEnvConfig, bool) {
 		}
 	}
 	return "local", RemoteLogEnvConfig{}, false
+}
+
+// LoadK8sConfig 从 JSON 文件读取 K8s 日志源配置。
+// 文件不存在或 enabled=false 时保持禁用，调用方不应因此启动 kubectl。
+func LoadK8sConfig(path string, out *K8sLogConfig) error {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(raw, out); err != nil {
+		return fmt.Errorf("parse %s: %w", path, err)
+	}
+	if out.App == "" {
+		out.App = "data-service"
+	}
+	if out.Kubectl == "" {
+		out.Kubectl = "kubectl"
+	}
+	if out.Tail <= 0 {
+		out.Tail = 200
+	}
+	return nil
 }
