@@ -7,7 +7,7 @@ const STATE = {
   endpoints: [],
   groups: [],
   selectedEndpoint: null,
-  currentView: 'api', // 'api', 'logs', 'split'
+  currentView: 'api', // 'api' | 'logs'
   env: 'local',
   baseURL: 'http://127.0.0.1:8005',
   routePrefix: '',
@@ -100,7 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Ctrl/Cmd+Enter 发送请求
     if (mod && e.key === 'Enter') {
-      if (STATE.currentView === 'api' || STATE.currentView === 'split') {
+      if (STATE.currentView === 'api') {
         e.preventDefault();
         sendAPIRequest();
       }
@@ -1892,41 +1892,15 @@ function updateSQLStatsUI(stats) {
 // Views Switcher: API Tester, Live Logs, Split View
 // =========================================================================
 function switchView(view) {
+  if (view !== 'api' && view !== 'logs') view = 'api';
   STATE.currentView = view;
 
   document.querySelectorAll('.mode-pill').forEach(pill => pill.classList.remove('active'));
-  document.getElementById(`pill-${view}`).classList.add('active');
+  const pill = document.getElementById(`pill-${view}`);
+  if (pill) pill.classList.add('active');
 
-  const apiView = document.getElementById('api-view');
-  const logView = document.getElementById('log-view');
-  const splitView = document.getElementById('split-view');
-
-  if (view === 'api') {
-    apiView.style.display = 'flex';
-    logView.style.display = 'none';
-    splitView.style.display = 'none';
-    // Restore parent if it was moved to split
-    if (apiView.parentElement === document.getElementById('split-left-container')) {
-      document.querySelector('.main-content').insertBefore(apiView, splitView);
-    }
-  } else if (view === 'logs') {
-    apiView.style.display = 'none';
-    logView.style.display = 'flex';
-    splitView.style.display = 'none';
-    if (logView.parentElement === document.getElementById('split-right-container')) {
-      document.querySelector('.main-content').insertBefore(logView, splitView);
-    }
-  } else if (view === 'split') {
-    apiView.style.display = 'flex';
-    logView.style.display = 'flex';
-    splitView.style.display = 'flex';
-
-    const splitLeft = document.getElementById('split-left-container');
-    const splitRight = document.getElementById('split-right-container');
-
-    splitLeft.appendChild(apiView);
-    splitRight.appendChild(logView);
-  }
+  document.getElementById('api-view').style.display = view === 'api' ? 'flex' : 'none';
+  document.getElementById('log-view').style.display = view === 'logs' ? 'flex' : 'none';
 }
 
 // =========================================================================

@@ -40,3 +40,6 @@ skills/data-workflow/config.yaml
 quality-gate/workspace/
 quality-gate/tunnel.url
 data-test-platform/k8s.json
+data-test-platform/project.json
+data-test-platform/project.*.json
+!data-test-platform/project.example.json

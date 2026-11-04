@@ -25,7 +25,6 @@
       <div class="mode-pills">
         <div class="mode-pill active" id="pill-api" onclick="switchView('api')">接口测试</div>
         <div class="mode-pill" id="pill-logs" onclick="switchView('logs')">日志监控</div>
-        <div class="mode-pill" id="pill-split" onclick="switchView('split')">分屏联调</div>
       </div>
 
       <!-- Environment Selector -->
@@ -361,16 +360,6 @@
       <!-- Log Stream Table -->
       <div class="log-stream" id="log-stream-container">
         <!-- Log entries rendered dynamically -->
-      </div>
-    </div>
-
-    <!-- View 3: Split View (Both Side-by-Side) -->
-    <div id="split-view" class="split-view-container" style="display:none;">
-      <div class="split-left" id="split-left-container">
-        <!-- Cloned or embedded API tester -->
-      </div>
-      <div class="split-right" id="split-right-container">
-        <!-- Cloned or embedded log stream -->
       </div>
     </div>
   </main>

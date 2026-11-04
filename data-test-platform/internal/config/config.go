@@ -342,6 +342,11 @@ func (c *Config) GetActiveRemoteLogTarget() (string, RemoteLogEnvConfig, bool) {
 func LoadK8sConfig(path string, out *K8sLogConfig) error {
 	raw, err := os.ReadFile(path)
 	if err != nil {
+		if os.IsNotExist(err) {
+			// 文件不存在 = 不启用 K8s 源，不算错误。
+			// 这样 toolbox 可以先写死 --k8s-config 路径，等你需要时再建文件。
+			return nil
+		}
 		return err
 	}
 	if err := json.Unmarshal(raw, out); err != nil {
