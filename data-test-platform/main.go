@@ -105,9 +105,8 @@ func main() {
 		logFileExists = true
 	}
 	chosen, sourceStates := cfg.ProbeSources(logFileExists)
-	if chosen != "none" {
-		cfg.SetLogSource(chosen)
-	}
+	// 无论探测结果如何都写回，避免前端拿到空的 log_source
+	cfg.SetLogSource(chosen)
 
 	// Start log monitors
 	switch chosen {

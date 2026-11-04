@@ -123,7 +123,7 @@ type RemoteLogConfig struct {
 	TimeRange      string                        `json:"time_range"` // default "realtime"
 	SLSProject     string                        `json:"sls_project"`
 	PageSize       int                           `json:"page_size"`
-	Realtime       bool                          `json:"realtime"`
+	Realtime       *bool                         `json:"realtime,omitempty"`
 	PollIntervalMs int                           `json:"poll_interval_ms"`
 	LogSource      string                        `json:"log_source"` // "auto", "local", "dev", "test", "prod"
 	Environments   map[string]RemoteLogEnvConfig `json:"environments"`
@@ -198,7 +198,7 @@ func NewDefaultConfig() *Config {
 			QueryMode:      "keyword",
 			TimeRange:      "realtime",
 			PageSize:       100,
-			Realtime:       true,
+			Realtime:       boolPtr(true),
 			PollIntervalMs: 2000,
 			LogSource:      "auto",
 			Environments:   map[string]RemoteLogEnvConfig{},
@@ -308,7 +308,9 @@ func (c *Config) UpdateRemoteLogConfig(update RemoteLogConfig) {
 	if update.LogSource != "" {
 		c.RemoteLog.LogSource = update.LogSource
 	}
-	c.RemoteLog.Realtime = update.Realtime
+	if update.Realtime != nil {
+		c.RemoteLog.Realtime = update.Realtime
+	}
 	if update.Environments != nil {
 		if c.RemoteLog.Environments == nil {
 			c.RemoteLog.Environments = make(map[string]RemoteLogEnvConfig)
@@ -451,8 +453,51 @@ func (c *Config) ApplyProfile(p *ProjectProfile) {
 	c.ProfileHeaders = p.Headers
 	c.DirectHosts = p.DirectHosts
 	c.Run = p.Run
+	// RemoteLog 只覆盖 profile 里显式提供的字段，其余保留默认值。
+	// 整体赋值会把 log_source / query_mode / page_size 等默认值冲成空。
 	if p.RemoteLog != nil {
-		c.RemoteLog = *p.RemoteLog
+		rl := *p.RemoteLog
+		if rl.WorkflowURL != "" {
+			c.RemoteLog.WorkflowURL = rl.WorkflowURL
+		}
+		if rl.AuthToken != "" {
+			c.RemoteLog.AuthToken = rl.AuthToken
+		}
+		if rl.Service != "" {
+			c.RemoteLog.Service = rl.Service
+		}
+		if rl.Source != "" {
+			c.RemoteLog.Source = rl.Source
+		}
+		if rl.QueryMode != "" {
+			c.RemoteLog.QueryMode = rl.QueryMode
+		}
+		if rl.TimeRange != "" {
+			c.RemoteLog.TimeRange = rl.TimeRange
+		}
+		if rl.SLSProject != "" {
+			c.RemoteLog.SLSProject = rl.SLSProject
+		}
+		if rl.PageSize > 0 {
+			c.RemoteLog.PageSize = rl.PageSize
+		}
+		if rl.PollIntervalMs > 0 {
+			c.RemoteLog.PollIntervalMs = rl.PollIntervalMs
+		}
+		if rl.LogSource != "" {
+			c.RemoteLog.LogSource = rl.LogSource
+		}
+		if rl.Realtime != nil {
+			c.RemoteLog.Realtime = rl.Realtime
+		}
+		if len(rl.Environments) > 0 {
+			if c.RemoteLog.Environments == nil {
+				c.RemoteLog.Environments = map[string]RemoteLogEnvConfig{}
+			}
+			for k, v := range rl.Environments {
+				c.RemoteLog.Environments[k] = v
+			}
+		}
 	}
 }
 
@@ -534,4 +579,11 @@ func (c *Config) SetLogSource(src string) {
 	c.mu.Lock()
 	c.RemoteLog.LogSource = src
 	c.mu.Unlock()
+}
+
+func boolPtr(v bool) *bool { return &v }
+
+// RealtimeEnabled 返回 realtime 是否开启，nil 视为开启。
+func (r RemoteLogConfig) RealtimeEnabled() bool {
+	return r.Realtime == nil || *r.Realtime
 }
