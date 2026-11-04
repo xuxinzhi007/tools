@@ -20,8 +20,8 @@ make toolbox-stop   # 停掉全部子工具
 | [sql-monitor](sql-monitor/) | 8767 | 慢 SQL 捕获、飞书告警、K8s 日志跟踪（CLI 采集后端） |
 | [quality-gate](quality-gate/) | 8080 | AI 工作区文件管理 + MCP 工具集 |
 
-> `data-test-platform` 上游是 `gitlab.x2robot.com/pengcong/data-test-platform`。
-> 本地改动（慢 SQL 累计聚合视图）提交在 `feat/sql-monitor-merge` 分支，未 push 到上游。
+> `data-test-platform` 原本是 `gitlab.x2robot.com/pengcong/data-test-platform`，
+> 已脱离上游归入本仓库。原 git 历史归档在 `~/.toolbox/backup/data-test-platform-history.bundle`。
 
 ### MCP Server（挂到 Qoder / Cursor，不由此处启动）
 
@@ -53,3 +53,15 @@ make toolbox-stop   # 停掉全部子工具
 
 - Go 1.24+
 - Python 3.12+ / [uv](https://docs.astral.sh/uv/)（仅 MCP 工具）
+
+## 版本控制
+
+全部子项目已合并到本仓库单一 `.git` 管理。
+原先各子项目独立仓库的历史归档在 `~/.toolbox/backup/*.bundle`，需要时可恢复：
+
+```bash
+git clone ~/.toolbox/backup/sql-monitor.bundle sql-monitor-restored
+```
+
+仓库里不该出现的东西（已在 `.gitignore` 挡掉）：编译产物、`.venv`、`__pycache__`、
+`.DS_Store`、含凭证的 `config.json` / `*.local.json`。凭证统一放 `~/.toolbox/config.yaml`。
