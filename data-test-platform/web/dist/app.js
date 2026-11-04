@@ -48,6 +48,8 @@ const STATE = {
     search: '',
   },
   autoScroll: true,
+  favorites: [],
+  wsRetry: 0,
   history: [],
   ws: null,
   activeTraceID: '',
@@ -82,6 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initWebSocket();
   loadRecentLogs();
   loadLocalHistory();
+  loadFavorites();
 
   // Poll remote log status periodically
   setInterval(fetchRemoteLogStatus, 4000);
@@ -90,15 +93,54 @@ document.addEventListener('DOMContentLoaded', () => {
   fetchK8sStatus();
   setInterval(fetchK8sStatus, 8000);
 
-  // Keyboard shortcut: Ctrl+Enter or Cmd+Enter to send request
+  // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    const mod = e.ctrlKey || e.metaKey;
+
+    // Ctrl/Cmd+Enter 发送请求
+    if (mod && e.key === 'Enter') {
       if (STATE.currentView === 'api' || STATE.currentView === 'split') {
         e.preventDefault();
         sendAPIRequest();
       }
+      return;
+    }
+
+    // Ctrl/Cmd+K 聚焦接口搜索
+    if (mod && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      const box = document.getElementById('api-search-input');
+      if (box) { box.focus(); box.select(); }
+      return;
+    }
+
+    // Ctrl/Cmd+J 聚焦日志搜索
+    if (mod && e.key.toLowerCase() === 'j') {
+      e.preventDefault();
+      const box = document.getElementById('log-search-input');
+      if (box) { box.focus(); box.select(); }
+      return;
+    }
+
+    // Ctrl/Cmd+S 把当前接口加入常用
+    if (mod && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      toggleFavoriteCurrent();
+      return;
+    }
+
+    // Esc 关闭弹窗
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.modal-overlay')
+        .forEach(m => { if (m.style.display === 'flex') m.style.display = 'none'; });
     }
   });
+
+  // 接口搜索防抖（替代原地的 oninput 直接重绘）
+  const searchBox = document.getElementById('api-search-input');
+  if (searchBox) {
+    searchBox.addEventListener('input', scheduleEndpointFilter);
+  }
 
   // Track log container scrolling to pause auto-scroll if user scrolls up
   const logContainer = document.getElementById('log-stream-container');
@@ -116,7 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // Theme Management (Dark / Light)
 // =========================================================================
 function initTheme() {
-  const savedTheme = localStorage.getItem('data_service_theme') || 'dark';
+  const savedTheme = localStorage.getItem('dtp:theme') || 'dark';
   applyTheme(savedTheme);
 }
 
@@ -134,7 +176,7 @@ function applyTheme(theme) {
 function toggleTheme() {
   const currentTheme = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
   const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-  localStorage.setItem('data_service_theme', newTheme);
+  localStorage.setItem('dtp:theme', newTheme);
   applyTheme(newTheme);
   showToast(newTheme === 'light' ? '已切换至亮色模式' : '已切换至暗色模式');
 }
@@ -349,68 +391,139 @@ function renderEndpointTree() {
     return;
   }
 
+  const matchEndpoint = (ep) => {
+    if (methodFilter !== 'ALL' && ep.method !== methodFilter) return false;
+    if (!searchKeyword) return true;
+    return (
+      ep.path.toLowerCase().includes(searchKeyword) ||
+      (ep.summary && ep.summary.toLowerCase().includes(searchKeyword)) ||
+      (ep.description && ep.description.toLowerCase().includes(searchKeyword)) ||
+      (ep.operationId && ep.operationId.toLowerCase().includes(searchKeyword))
+    );
+  };
+
+  // 常用接口置顶：每天就那几个，不该埋在 140+ 条里找
+  const favIds = new Set(STATE.favorites || []);
+  const favEndpoints = [];
+  STATE.groups.forEach(g => (g.endpoints || []).forEach(ep => {
+    if (favIds.has(endpointId(ep)) && matchEndpoint(ep)) favEndpoints.push(ep);
+  }));
+  if (favEndpoints.length > 0) {
+    renderGroup(container, { name: '★ 常用', endpoints: favEndpoints }, favEndpoints.length, true);
+  }
+
   STATE.groups.forEach((group) => {
-    // Filter endpoints
-    const filteredEndpoints = (group.endpoints || []).filter((ep) => {
-      if (methodFilter !== 'ALL' && ep.method !== methodFilter) return false;
-      if (!searchKeyword) return true;
-      return (
-        ep.path.toLowerCase().includes(searchKeyword) ||
-        (ep.summary && ep.summary.toLowerCase().includes(searchKeyword)) ||
-        (ep.description && ep.description.toLowerCase().includes(searchKeyword)) ||
-        (ep.operationId && ep.operationId.toLowerCase().includes(searchKeyword))
-      );
-    });
-
+    const filteredEndpoints = (group.endpoints || []).filter(matchEndpoint);
     if (filteredEndpoints.length === 0) return;
-
-    const groupEl = document.createElement('div');
-    groupEl.className = 'tag-group';
-
-    const headerEl = document.createElement('div');
-    headerEl.className = 'tag-header';
-    headerEl.innerHTML = `
-      <span>${group.name}</span>
-      <span class="badge" style="background:var(--bg-tertiary); color:var(--text-muted);">${filteredEndpoints.length}</span>
-    `;
-
-    const endpointsListEl = document.createElement('div');
-    endpointsListEl.className = 'tag-endpoints';
-
-    headerEl.onclick = () => {
-      endpointsListEl.style.display = endpointsListEl.style.display === 'none' ? 'flex' : 'none';
-    };
-
-    filteredEndpoints.forEach((ep) => {
-      const itemEl = document.createElement('div');
-      itemEl.className = 'endpoint-item' + (STATE.selectedEndpoint && STATE.selectedEndpoint.path === ep.path && STATE.selectedEndpoint.method === ep.method ? ' active' : '');
-      
-      const methodBadgeClass = 'badge-' + ep.method.toLowerCase();
-      itemEl.innerHTML = `
-        <span class="badge ${methodBadgeClass}">${ep.method}</span>
-        <div style="flex:1; overflow:hidden;">
-          <div class="endpoint-path" title="${ep.path}">${ep.path}</div>
-          <div class="endpoint-summary" title="${ep.summary || ep.description || ep.operationId}">${ep.summary || ep.description || ep.operationId}</div>
-        </div>
-      `;
-
-      itemEl.onclick = () => {
-        document.querySelectorAll('.endpoint-item').forEach(el => el.classList.remove('active'));
-        itemEl.classList.add('active');
-        selectEndpoint(ep);
-      };
-
-      endpointsListEl.appendChild(itemEl);
-    });
-
-    groupEl.appendChild(headerEl);
-    groupEl.appendChild(endpointsListEl);
-    container.appendChild(groupEl);
+    renderGroup(container, group, filteredEndpoints.length, false);
   });
+}
+
+function endpointId(ep) {
+  return ep.method + ' ' + ep.path;
+}
+
+function renderGroup(container, group, count, pinned) {
+  const groupEl = document.createElement('div');
+  groupEl.className = 'tag-group';
+
+  const headerEl = document.createElement('div');
+  headerEl.className = 'tag-header';
+  headerEl.innerHTML = `
+    <span>${escapeHTML(group.name)}</span>
+    <span class="badge" style="background:var(--bg-tertiary); color:var(--text-muted);">${count}</span>
+  `;
+
+  const listEl = document.createElement('div');
+  listEl.className = 'tag-endpoints';
+
+  headerEl.onclick = () => {
+    listEl.style.display = listEl.style.display === 'none' ? 'flex' : 'none';
+  };
+
+  group.endpoints.forEach((ep) => {
+    listEl.appendChild(buildEndpointItem(ep));
+  });
+
+  groupEl.appendChild(headerEl);
+  groupEl.appendChild(listEl);
+  container.appendChild(groupEl);
+}
+
+function buildEndpointItem(ep) {
+  const itemEl = document.createElement('div');
+  const isActive = STATE.selectedEndpoint
+    && STATE.selectedEndpoint.path === ep.path
+    && STATE.selectedEndpoint.method === ep.method;
+  itemEl.className = 'endpoint-item' + (isActive ? ' active' : '');
+
+  const starred = (STATE.favorites || []).includes(endpointId(ep));
+  const methodBadgeClass = 'badge-' + ep.method.toLowerCase();
+
+  itemEl.innerHTML = `
+    <button class="fav-btn${starred ? ' on' : ''}" title="${starred ? '取消常用 (Ctrl+S)' : '加入常用 (Ctrl+S)'}">${starred ? '★' : '☆'}</button>
+    <span class="badge ${methodBadgeClass}">${escapeHTML(ep.method)}</span>
+    <div style="flex:1; overflow:hidden;">
+      <div class="endpoint-path" title="${escapeHTML(ep.path)}">${escapeHTML(ep.path)}</div>
+      <div class="endpoint-summary" title="${escapeHTML(ep.summary || ep.description || ep.operationId || '')}">${escapeHTML(ep.summary || ep.description || ep.operationId || '')}</div>
+    </div>
+  `;
+
+  itemEl.querySelector('.fav-btn').onclick = (e) => {
+    e.stopPropagation();
+    toggleFavorite(ep);
+  };
+
+  itemEl.onclick = () => {
+    document.querySelectorAll('.endpoint-item').forEach(el => el.classList.remove('active'));
+    itemEl.classList.add('active');
+    selectEndpoint(ep);
+  };
+
+  return itemEl;
+}
+
+// ── 常用接口 ──────────────────────────────────────────────
+function loadFavorites() {
+  try {
+    const raw = localStorage.getItem(storageKey('favorites'));
+    STATE.favorites = raw ? JSON.parse(raw) : [];
+  } catch (e) { STATE.favorites = []; }
+}
+
+function saveFavorites() {
+  try { localStorage.setItem(storageKey('favorites'), JSON.stringify(STATE.favorites)); } catch (e) {}
+}
+
+function toggleFavorite(ep) {
+  const id = endpointId(ep);
+  const i = (STATE.favorites || []).indexOf(id);
+  if (i >= 0) {
+    STATE.favorites.splice(i, 1);
+    showToast('已取消常用');
+  } else {
+    STATE.favorites.push(id);
+    showToast('已加入常用');
+  }
+  saveFavorites();
+  renderEndpointTree();
+}
+
+function toggleFavoriteCurrent() {
+  const ep = STATE.selectedEndpoint;
+  if (!ep) { showToast('先选一个接口'); return; }
+  toggleFavorite(ep);
 }
 
 function filterEndpoints() {
   renderEndpointTree();
+}
+
+// 搜索输入防抖：接口多时每敲一个字就全量重绘会卡
+let endpointFilterTimer = null;
+function scheduleEndpointFilter() {
+  clearTimeout(endpointFilterTimer);
+  endpointFilterTimer = setTimeout(renderEndpointTree, 120);
 }
 
 function filterMethod(method) {
@@ -752,11 +865,14 @@ async function sendAPIRequest() {
 
     displayResponse(result, method, path);
 
-    // Save to history
+    // Save to history（存完整快照，这样「重发」能真的重现当时的请求）
     saveHistory({
       method,
       path,
       url: targetURL,
+      baseURL: STATE.customBaseURL || STATE.baseURL,
+      prefix: STATE.routePrefix,
+      headers: (STATE.customHeaders || []).filter(h => h.enabled !== false),
       status: result.status,
       statusText: result.status_text,
       durationMs: result.duration_ms,
@@ -1457,6 +1573,12 @@ function copyResponseBody() {
   });
 }
 
+// localStorage key 按项目隔离：同一个工具接不同项目时历史不会混在一起
+function storageKey(name) {
+  const p = (STATE.projectName || 'default').replace(/[^A-Za-z0-9_.-]/g, '_');
+  return `dtp:${p}:${name}`;
+}
+
 // =========================================================================
 // Real-Time Log & SQL Monitoring (WebSocket)
 // =========================================================================
@@ -1465,11 +1587,13 @@ function initWebSocket() {
   const wsURL = `${protocol}//${window.location.host}/ws/logs`;
 
   const indicator = document.getElementById('ws-indicator');
+  let retry = STATE.wsRetry || 0;
 
   try {
     STATE.ws = new WebSocket(wsURL);
 
     STATE.ws.onopen = () => {
+      STATE.wsRetry = 0;
       indicator.className = 'ws-badge ok';
       indicator.textContent = '日志流已连接';
     };
@@ -1483,10 +1607,15 @@ function initWebSocket() {
       }
     };
 
+    // 指数退避：后端重启时 3s 固定重连会刷屏，且没意义
     STATE.ws.onclose = () => {
+      retry = Math.min(retry + 1, 6);
+      STATE.wsRetry = retry;
+      const delay = Math.min(1000 * Math.pow(1.6, retry - 1), 15000);
       indicator.className = 'ws-badge error';
-      indicator.textContent = '日志流断开，重连中...';
-      setTimeout(initWebSocket, 3000);
+      indicator.textContent = `日志流断开，${Math.round(delay / 1000)}s 后重连`;
+      clearTimeout(STATE.wsRetryTimer);
+      STATE.wsRetryTimer = setTimeout(initWebSocket, delay);
     };
 
     STATE.ws.onerror = () => {
@@ -1982,20 +2111,20 @@ function saveHistory(item) {
   STATE.history.unshift(item);
   if (STATE.history.length > 50) STATE.history.pop();
   try {
-    localStorage.setItem('data_service_tester_history', JSON.stringify(STATE.history));
+    localStorage.setItem(storageKey('history'), JSON.stringify(STATE.history));
   } catch (e) {}
 }
 
 function loadLocalHistory() {
   try {
-    const raw = localStorage.getItem('data_service_tester_history');
+    const raw = localStorage.getItem(storageKey('history'));
     if (raw) STATE.history = JSON.parse(raw);
   } catch (e) {}
 }
 
 function clearHistory() {
   STATE.history = [];
-  try { localStorage.removeItem('data_service_tester_history'); } catch(e) {}
+  try { localStorage.removeItem(storageKey('history')); } catch(e) {}
   renderHistoryList();
 }
 
@@ -2017,27 +2146,60 @@ function renderHistoryList() {
     div.style.display = 'flex';
     div.style.alignItems = 'center';
     div.style.justifyContent = 'space-between';
-    div.style.cursor = 'pointer';
+    div.style.gap = '10px';
 
     div.innerHTML = `
-      <div style="display:flex; align-items:center; gap:8px;">
-        <span class="badge badge-${h.method.toLowerCase()}">${h.method}</span>
-        <span style="font-family:monospace; font-size:12px;">${h.path}</span>
-        <span class="status-badge status-${String(h.status)[0]}xx" style="font-size:10px;">${h.status}</span>
+      <div style="display:flex; align-items:center; gap:8px; flex:1; overflow:hidden; cursor:pointer;">
+        <span class="badge badge-${escapeHTML(String(h.method).toLowerCase())}">${escapeHTML(h.method)}</span>
+        <span style="font-family:monospace; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHTML(h.path)}</span>
+        <span class="status-badge status-${String(h.status)[0]}xx" style="font-size:10px;">${escapeHTML(String(h.status))}</span>
         <span style="font-size:11px; color:var(--text-muted);">${h.durationMs ? h.durationMs.toFixed(1) + 'ms' : ''}</span>
       </div>
-      <span style="font-size:11px; color:var(--text-muted);">${h.time}</span>
+      <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+        <button class="btn btn-secondary btn-sm" data-act="replay" title="填充到请求面板">重发</button>
+        <span style="font-size:11px; color:var(--text-muted);">${escapeHTML(h.time || '')}</span>
+      </div>
     `;
 
-    div.onclick = () => {
-      document.getElementById('req-method-select').value = h.method;
-      document.getElementById('req-path-input').value = h.path;
-      if (h.body) document.getElementById('req-body-editor').value = h.body;
+    // 点左侧填充（不发送）
+    div.querySelector('div').onclick = () => {
+      applyHistory(h);
       closeHistoryModal();
+    };
+
+    // 点「重发」填充并直接发送
+    div.querySelector('[data-act=replay]').onclick = (e) => {
+      e.stopPropagation();
+      applyHistory(h);
+      closeHistoryModal();
+      sendAPIRequest();
     };
 
     container.appendChild(div);
   });
+}
+
+// 把一条历史恢复成完整请求；旧格式只有 method/path/body 也能用
+function applyHistory(h) {
+  document.getElementById('req-method-select').value = h.method;
+  document.getElementById('req-path-input').value = h.path;
+  if (h.body !== undefined) {
+    document.getElementById('req-body-editor').value = h.body || '';
+  }
+  if (h.baseURL) {
+    const el = document.getElementById('target-base-url');
+    if (el) el.value = h.baseURL;
+    STATE.customBaseURL = h.baseURL;
+  }
+  if (h.prefix !== undefined) {
+    const el = document.getElementById('req-prefix-input');
+    if (el) el.value = h.prefix;
+    STATE.routePrefix = h.prefix;
+  }
+  if (Array.isArray(h.headers) && h.headers.length) {
+    STATE.customHeaders = h.headers.map(x => ({ ...x }));
+    renderCustomHeadersTable();
+  }
 }
 
 // SQL Syntax Highlighting
