@@ -1,0 +1,12 @@
+{
+  "base_url": "http://127.0.0.1:8188",
+  "portable_root": "D:\\xuxinzhi\\ComfyUI_windows_portable_nvidia\\ComfyUI_windows_portable",
+  "default_checkpoint": "meinamix_v12Final.safetensors",
+  "launch_args": ["--windows-standalone-build"],
+  "startup_timeout": 240,
+  "http_host": "127.0.0.1",
+  "http_port": 8189,
+  "http_token": "",
+  "output_dir": "",
+  "workflow_dirs": []
+}

@@ -31,6 +31,7 @@ make toolbox-stop   # 停掉全部子工具
 | [apifoxmcp](apifoxmcp/) | stdio | Apifox 场景用例 / 接口搜索与创建 |
 | [grill-mcp](grill-mcp/) | stdio | 交互式需求拆解 / Bug 分析 / 架构理解 |
 | [qoder-mcp](qoder-mcp/) | stdio | 飞书驱动 qodercli 跑编码任务 |
+| [comfyui-mcp](comfyui-mcp/) | stdio + HTTP | 本地 ComfyUI 便携包出图：txt2img / img2img / 跑界面里保存的工作流；HTTP 模式供网页版客户端（Grok）接入 |
 
 ### 技能与插件（由外部宿主加载，此处只做备份与索引）
 
