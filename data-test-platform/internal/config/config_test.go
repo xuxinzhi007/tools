@@ -117,3 +117,94 @@ func TestLoadProfile(t *testing.T) {
 		t.Error("非法 JSON 应报错")
 	}
 }
+
+func TestProbeSourcesAuto(t *testing.T) {
+	cases := []struct {
+		name      string
+		setup     func(*Config)
+		localFile bool
+		want      string
+	}{
+		{
+			name:      "什么都没配 → 无可用源",
+			setup:     func(c *Config) {},
+			localFile: false,
+			want:      "none",
+		},
+		{
+			name:      "只有本地文件 → local",
+			setup:     func(c *Config) {},
+			localFile: true,
+			want:      "local",
+		},
+		{
+			name: "云端配好 → 优先云端",
+			setup: func(c *Config) {
+				c.RemoteLog.WorkflowURL = "https://obs.example.com/q"
+				c.RemoteLog.AuthToken = "tok"
+				c.RemoteLog.Environments = map[string]RemoteLogEnvConfig{
+					"dev": {Environment: "ns-dev"},
+				}
+			},
+			localFile: true,
+			want:      "dev",
+		},
+		{
+			name: "云端只有 token 没有 workflow_url → 不算可用",
+			setup: func(c *Config) {
+				c.RemoteLog.AuthToken = "tok"
+				c.RemoteLog.Environments = map[string]RemoteLogEnvConfig{
+					"dev": {Environment: "ns-dev"},
+				}
+			},
+			localFile: true,
+			want:      "local",
+		},
+		{
+			name: "K8s 启用且有 app → 优先于本地",
+			setup: func(c *Config) {
+				c.K8s.Enabled = true
+				c.K8s.App = "svc"
+			},
+			localFile: true,
+			want:      "k8s",
+		},
+		{
+			name: "K8s 启用但没 app → 跳过",
+			setup: func(c *Config) {
+				c.K8s.Enabled = true
+			},
+			localFile: true,
+			want:      "local",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			c := NewDefaultConfig()
+			tc.setup(c)
+			got, states := c.ProbeSources(tc.localFile)
+			if got != tc.want {
+				t.Errorf("chosen = %q, want %q (states=%+v)", got, tc.want, states)
+			}
+			if len(states) != 5 {
+				t.Errorf("应返回 5 个源状态，实际 %d", len(states))
+			}
+		})
+	}
+}
+
+func TestProbeSourcesExplicitWins(t *testing.T) {
+	c := NewDefaultConfig()
+	c.RemoteLog.LogSource = "test" // 用户显式选了 test
+	c.RemoteLog.WorkflowURL = "https://obs.example.com/q"
+	c.RemoteLog.AuthToken = "tok"
+	c.RemoteLog.Environments = map[string]RemoteLogEnvConfig{
+		"test": {Environment: "ns-test"},
+	}
+
+	got, _ := c.ProbeSources(true) // 本地文件也存在
+	if got != "test" {
+		t.Errorf("显式指定应被尊重，got %q", got)
+	}
+}

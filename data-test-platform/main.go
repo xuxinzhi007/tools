@@ -98,21 +98,54 @@ func main() {
 		log.Fatalf("❌ Failed to bind address %s: %v", addr, err)
 	}
 
+	// 启动前探测可用日志源：把 "auto" 真正落实成具体来源，
+	// 否则页面打开后日志区是空的，用户得自己去找下拉框。
+	logFileExists := false
+	if st, err := os.Stat(cfg.LogFilePath); err == nil && !st.IsDir() {
+		logFileExists = true
+	}
+	chosen, sourceStates := cfg.ProbeSources(logFileExists)
+	if chosen != "none" {
+		cfg.SetLogSource(chosen)
+	}
+
 	// Start log monitors
-	tailer.Start()
-	remotePoller.Start()
+	switch chosen {
+	case "local":
+		tailer.Start()
+	case "dev", "test", "prod":
+		remotePoller.Start()
+	}
 
 	fmt.Println()
 	fmt.Println("🚀 =================================================================")
-	fmt.Println("   Data Service API 接口测试 & 日志 SQL 实时监听平台")
+	fmt.Printf("   %s · 接口测试与日志 SQL 实时监听\n", cfg.ProjectName)
 	fmt.Println("=================================================================")
 	fmt.Printf("🌐 Web 访问界面:       http://localhost:%d\n", *port)
-	fmt.Printf("🎯 默认测试目标服务:   %s (已自动读取 local 配置)\n", cfg.GetBaseURL())
+	fmt.Printf("🎯 默认测试目标服务:   %s\n", cfg.GetBaseURL())
 	fmt.Printf("📄 OpenAPI 规范文件:   %s\n", cfg.OpenAPIPath)
-	fmt.Printf("📜 日志监控文件:       %s\n", cfg.LogFilePath)
 	fmt.Printf("🐢 慢 SQL 判定阈值:    %s\n", slowThreshold)
+	fmt.Println("-----------------------------------------------------------------")
+	if chosen == "none" {
+		fmt.Println("📜 日志源:             ❌ 没有可用的源")
+	} else {
+		fmt.Printf("📜 日志源:             %s\n", chosen)
+	}
+	for _, st := range sourceStates {
+		mark := "  "
+		if st.ID == chosen {
+			mark = "→ "
+		} else if st.Available {
+			mark = "✓ "
+		}
+		fmt.Printf("   %s%-6s %s\n", mark, st.ID, st.Reason)
+	}
+	if chosen == "none" {
+		fmt.Println("   提示: 用 --log 指定日志文件，或在页面里配置云端 token / --k8s-config")
+	}
 	fmt.Println("=================================================================")
-	fmt.Println("💡 提示: 无需 Swagger，打开浏览器即可直接测试接口与实时捕获慢SQL！")
+	fmt.Println("💡 Ctrl+K 搜接口 · Ctrl+J 搜日志 · Ctrl+Enter 发送 · Esc 关弹窗")
+	fmt.Println()
 	fmt.Println("   按 Ctrl+C 即可退出")
 	fmt.Println()
 

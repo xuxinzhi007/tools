@@ -388,6 +388,7 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 			"xr_auth_aut":          s.cfg.XrAuthAut,
 			"remote_log":           s.cfg.GetRemoteLogConfig(),
 			"remote_log_status":    s.remotePoller.GetStatus(),
+			"sources":              s.sourceStates(),
 
 			// 项目 profile：前端根据这些渲染标题、环境和默认请求头，
 			// 不再在 JS 里写死任何域名或账号。
@@ -778,4 +779,19 @@ func maskSecret(v string) string {
 		return "***"
 	}
 	return v[:3] + "***" + v[len(v)-3:]
+}
+
+// sourceStates 探测各日志源可用性，供前端展示"为什么选了这个源"。
+func (s *Server) sourceStates() []config.SourceState {
+	// 只做可用性查询，不改动当前选中的源
+	_, states := s.cfg.ProbeSources(logFileExists(s.cfg.LogFilePath))
+	return states
+}
+
+func logFileExists(path string) bool {
+	if path == "" {
+		return false
+	}
+	st, err := os.Stat(path)
+	return err == nil && !st.IsDir()
 }

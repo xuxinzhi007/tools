@@ -89,10 +89,109 @@ make build
 | 参数 | 默认值 | 说明 |
 | :--- | :--- | :--- |
 | `-port` | `9099` | 平台 Web 服务监听端口 |
-| `-openapi` | `../data-service/openapi.yaml` | `data-service` 生成的 OpenAPI 文件路径 |
-| `-log` | `../data-service/logs/app.log` | 需要监听 tail 的日志文件路径 |
-| `-target` | `http://127.0.0.1:8005` | 默认被测试的 `data-service` 实例地址 |
-| `-slow-threshold` | `200ms` | 慢 SQL 判定时间阈值（如 `200ms`、`500ms`、`1s`） |
+| `-openapi` | `openapi.yaml` | OpenAPI 3.0 文件路径 |
+| `-log` | `app.log` | 本地日志文件路径 |
+| `-target` | 空 | 覆盖默认目标服务地址（空 = 用 `--project` 里的环境） |
+| `-slow-threshold` | `200ms` | 慢 SQL 判定阈值（如 `200ms`、`500ms`、`1s`） |
+| `-project` | 空 | **项目配置**（环境、请求头、云端日志、本地启动命令）。不传则一切为中性默认 |
+| `-k8s-config` | 空 | **K8s 日志源配置**。不传则永不调用 kubectl |
+
+---
+
+## 📜 日志源接入与分发
+
+平台支持三种日志源，同一时刻只有一个是激活的。启动时自动选一个可用的，页面上也能随时切换。
+
+### 三种源
+
+| 源 | ID | 数据从哪来 | 前置条件 |
+| :--- | :--- | :--- | :--- |
+| 本地文件 | `local` | `tail -f` 指定的日志文件 | `-log` 指向的文件存在 |
+| DevOps 云端 | `dev` / `test` / `prod` | 轮询可观测平台 HTTP API | `workflow_url` + `auth_token` + 该环境已配置 |
+| K8s Pod | `k8s` | `kubectl logs -f` 跟随集群 pod | `--k8s-config` 且 `enabled=true` 且配了 `app` |
+
+### 启动时怎么选（auto 的真实逻辑）
+
+`log_source` 为空或 `auto` 时，启动按下面的优先级探测，选**第一个真正可用的**：
+
+```
+dev → test → prod → k8s → local
+```
+
+也就是：**云端优先于 K8s，K8s 优先于本地文件**。一个都没有就选 `none`，页面徽章变红提示。
+
+启动日志会打印完整探测结果，不用猜：
+
+```
+-----------------------------------------------------------------
+📜 日志源:             local
+     dev    未配置该环境
+     test   未配置该环境
+     prod   未配置该环境
+     k8s    未启用（需要 --k8s-config）
+   → local  日志文件存在: /tmp/app.log
+```
+
+如果显式设了 `log_source`（比如你在页面上选了 `test`），**不会被自动探测覆盖**。
+
+### 切换时发生什么
+
+在页面「来源」下拉框切换时：
+
+1. 目标源就绪 → 停掉当前源，启动目标源，清空日志流与 SQL 统计（避免两个环境的数据混在一起）
+2. 从 K8s 切走 → 立即 `SIGTERM` kubectl
+3. 目标源不就绪 → 拒绝切换，下拉框回滚，并提示缺什么
+
+### 数据分发路径
+
+三条源最终都汇到同一个 `Hub`，再分发给页面：
+
+```
+local   FileTailer ──┐
+dev/test/prod RemoteLogPoller ──┼──> Hub ──> WebSocket /ws/logs ──> 日志流面板
+k8s     K8sTailer ──┘                  └──> AggregateStore ──> 慢 SQL 排行
+                                        └──> StatsCollector ──> 顶部统计
+                                        └──> /api/logs/recent ──> 首屏历史
+```
+
+每条 `LogEntry` 带 `log_source` 字段标记来源，页面据此显示徽章（`LOCAL` / `DEV` / `K8S`…），K8s 源额外带 `pod_name`。
+
+**源之间互斥**：`Hub.localGate` 会在切到云端时丢弃本地来源的行，避免本地慢 SQL 混进云端日志流。
+
+### 凭证放哪
+
+| 凭证 | 位置 | 是否进 git |
+| :--- | :--- | :--- |
+| 云端 `auth_token` | `project.json` | ❌ 文件已 gitignore |
+| 飞书 `app_id`/`app_secret` | 环境变量 或 `~/.toolbox/config.yaml` | ❌ |
+| kubeconfig | 复用本机 `~/.kube/config` 或 `--k8s-config` 指定 | ❌ |
+
+> `project.json`、`k8s.json` 都在 `.gitignore` 里，仓库只提交 `*.example.json`。
+
+---
+
+## 🎯 项目配置（--project）
+
+平台本身不绑定任何项目。域名、环境、网关鉴权头全部由 `--project` 指向的 JSON 提供：
+
+```bash
+cp project.example.json project.json    # 改成本项目的域名与环境
+go run . --project project.json
+```
+
+字段说明：
+
+| 字段 | 作用 |
+| :--- | :--- |
+| `name` / `title` | 项目名与页面标题 |
+| `vars` | 变量表，供 `headers` 里的 `${var}` 展开 |
+| `environments` | 环境下拉框的内容（`id` / `name` / `base_url` / `route_prefix`） |
+| `headers` | 默认请求头，支持 `${var}`；`secret: true` 的项在 `/api/config` 里返回掩码 |
+| `remote_log` | 云端日志查询地址、token、服务名、各环境映射 |
+| `direct_hosts` | 绕过系统代理直连的域名后缀（如 `["example.com"]`） |
+| `run` | 本地拉起被测试服务的默认命令（`command` / `args` / `dir`） |
+
+不传 `--project` 时只有 `local` 和 `custom` 两个通用环境，没有任何网关头。
 
 ---
 

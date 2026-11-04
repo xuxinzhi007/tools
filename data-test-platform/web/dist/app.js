@@ -49,6 +49,7 @@ const STATE = {
   },
   autoScroll: true,
   favorites: [],
+  sourceStates: [],
   wsRetry: 0,
   history: [],
   ws: null,
@@ -259,6 +260,12 @@ async function loadConfig() {
     }
     if (Array.isArray(data.profile_headers)) {
       STATE.auth.profileHeaders = data.profile_headers;
+    }
+
+    // 日志源可用性：选中源不可用/全部不可用时给出明确提示
+    if (Array.isArray(data.sources)) {
+      STATE.sourceStates = data.sources;
+      updateSourceHint(data.sources, data.remote_log && data.remote_log.log_source);
     }
 
     if (data.remote_log) {
@@ -2818,4 +2825,34 @@ function populateEnvSelect(envs) {
     `<option value="${escapeHTML(e.id)}">${escapeHTML(e.name || e.id)}</option>`
   ).join('');
   if (envs.some(e => e.id === current)) sel.value = current;
+}
+
+// 日志源提示：选中的源不可用时说清原因，全部不可用时给出操作指引。
+// 之前本地文件不存在只会静默重试，页面一片空白，很容易误以为工具坏了。
+function updateSourceHint(states, current) {
+  const badge = document.getElementById('remote-log-status-badge');
+  if (!badge) return;
+
+  const map = {};
+  states.forEach(s => { map[s.id] = s; });
+  const cur = map[current];
+
+  if (!states.some(s => s.available)) {
+    badge.textContent = '⚠ 无可用日志源';
+    badge.className = 'remote-status-badge remote-status-error';
+    badge.title = states.map(s => `${s.id}: ${s.reason}`).join('\n')
+      + '\n\n用 --log 指定日志文件，或配置云端 token / --k8s-config';
+    return;
+  }
+
+  if (cur && !cur.available) {
+    badge.textContent = `${current} 不可用`;
+    badge.className = 'remote-status-badge remote-status-error';
+    badge.title = cur.reason;
+    return;
+  }
+
+  if (cur && cur.available && cur.reason) {
+    badge.title = cur.reason;
+  }
 }

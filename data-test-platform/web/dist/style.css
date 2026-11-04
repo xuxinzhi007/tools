@@ -374,6 +374,12 @@ button {
   background: rgba(62, 207, 142, 0.13);
   color: var(--ok);
 }
+
+/* 日志源不可用：必须显眼，否则页面空白会被当成工具坏了 */
+.remote-status-error {
+  background: rgba(239, 77, 90, 0.14);
+  color: var(--danger);
+}
 [data-theme="light"] .ws-badge.ok,
 [data-theme="light"] .remote-status-active {
   background: rgba(13, 157, 103, 0.1);

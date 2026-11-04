@@ -450,3 +450,83 @@ func (c *Config) ApplyProfile(p *ProjectProfile) {
 		c.RemoteLog = *p.RemoteLog
 	}
 }
+
+// SourceState 描述某个日志源当前是否可用，用于启动时自动选择。
+type SourceState struct {
+	ID        string `json:"id"` // local / dev / test / prod / k8s / none
+	Available bool   `json:"available"`
+	Reason    string `json:"reason"` // 不可用原因或选中的说明
+}
+
+// ProbeSources 按优先级探测可用日志源：
+//
+//	显式指定(local/dev/test/prod/k8s) > 云端(有 token 且有环境配置) > 本地(文件存在)
+//
+// 只在 log_source 为 "" 或 "auto" 时才做探测；显式指定时原样返回，
+// 避免用户的选择被覆盖。
+func (c *Config) ProbeSources(localFileExists bool) (chosen string, states []SourceState) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	// 云端各环境
+	remoteReady := strings.TrimSpace(c.RemoteLog.AuthToken) != "" &&
+		strings.TrimSpace(c.RemoteLog.WorkflowURL) != ""
+	for _, env := range []string{"dev", "test", "prod"} {
+		st := SourceState{ID: env}
+		if _, ok := c.RemoteLog.Environments[env]; !ok {
+			st.Reason = "未配置该环境"
+		} else if !remoteReady {
+			st.Reason = "缺少 workflow_url 或 auth_token"
+		} else {
+			st.Available = true
+			st.Reason = "已配置 " + env + " 环境"
+		}
+		states = append(states, st)
+	}
+
+	// K8s
+	k8s := SourceState{ID: "k8s"}
+	switch {
+	case !c.K8s.Enabled:
+		k8s.Reason = "未启用（需要 --k8s-config）"
+	case strings.TrimSpace(c.K8s.App) == "":
+		k8s.Reason = "未配置 app 名称"
+	default:
+		k8s.Available = true
+		k8s.Reason = "已启用"
+	}
+	states = append(states, k8s)
+
+	// 本地
+	local := SourceState{ID: "local"}
+	if localFileExists {
+		local.Available = true
+		local.Reason = "日志文件存在: " + c.LogFilePath
+	} else {
+		local.Reason = "日志文件不存在: " + c.LogFilePath
+	}
+	states = append(states, local)
+
+	// 显式指定：尊重用户选择，不做探测
+	src := c.RemoteLog.LogSource
+	if src != "" && src != "auto" {
+		return src, states
+	}
+
+	// auto：按优先级选第一个可用的
+	for _, id := range []string{"dev", "test", "prod", "k8s", "local"} {
+		for _, st := range states {
+			if st.ID == id && st.Available {
+				return id, states
+			}
+		}
+	}
+	return "none", states
+}
+
+// SetLogSource 设置当前使用的日志源（启动探测与前端切换共用）。
+func (c *Config) SetLogSource(src string) {
+	c.mu.Lock()
+	c.RemoteLog.LogSource = src
+	c.mu.Unlock()
+}
