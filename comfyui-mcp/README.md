@@ -37,32 +37,47 @@ MCP 客户端（Cursor / Qoder / Claude）里：
 }
 ```
 
-## HTTP 模式（网页版 Grok 等只能填 URL 的客户端）
+## HTTP / 隧道模式（网页版 Grok 等只能填 URL 的客户端）
 
 像 `mt-apk-mcp`（`http://192.168.124.50:8787/mcp`）那种 URL 接入方式，本服务也支持 ——
-用 MCP 的 **Streamable HTTP** 传输起一个常驻 HTTP 端点：
+用 MCP 的 **Streamable HTTP** 传输；网页版 Grok 的连接是从**它的服务器**发起的，
+本机/局域网地址都够不着，得用 `--tunnel` 挂公网隧道（同 quality-gate 的 ngrok 玩法）。
+
+### 局域网 HTTP（手机 / 同网段设备）
 
 ```bash
-# 本机浏览器用（网页版 Grok 开在同一台机器）
-D:\...\python_embeded\python.exe server.py --http 127.0.0.1:8189
-
-# 局域网可连（手机 / 其他设备，写法同 ：端口）
-D:\...\python_embeded\python.exe server.py --http :8189
+D:\...\python_embeded\python.exe server.py --http 127.0.0.1:8189   # 只本机
+D:\...\python_embeded\python.exe server.py --http :8189          # 局域网可连
 ```
 
-在网页客户端里添加 MCP 连接，地址填：
+### 公网隧道（网页版 Grok：grok.com → 连接器 → Custom）
+
+双击 `start-tunnel.bat`，或：
+
+```bash
+D:\...\python_embeded\python.exe server.py --tunnel
+```
+
+它会：起本地 HTTP(8189) → 自动拉 `ngrok http 8189`（已在跑则复用）→
+轮询 4040 拿公网地址 → 打印可直接粘贴的连接器 URL 和认证 token，并写入 `.run/tunnel.url`：
 
 ```
-http://127.0.0.1:8189/mcp        ← 浏览器在同一台机器
-http://192.168.x.x:8189/mcp      ← 局域网其他设备（--http :8189 启动时）
+ 连接器 URL：  https://xxx.ngrok-free.dev/mcp
+ 认证 token：  <32位hex，config.json 里 http_token 固定，没配则每次自动生成>
+ 粘这个即可：  https://xxx.ngrok-free.dev/mcp?key=<token>
 ```
 
-说明：
-- 无状态实现，POST JSON-RPC 直接回 `application/json`，不带 SSE 推送流，符合规范里服务器可选的简化形态
-- CORS 全开（浏览器跨域直连没问题），首次绑定全网卡时 Windows 防火墙会弹一次允许
-- 公网/不可信网络下设置令牌：`config.json` 里 `http_token`（或环境变量 `COMFYUI_MCP_HTTP_TOKEN`），
-  客户端用 `Authorization: Bearer <token>` 或 `X-API-Key` 头
-- 默认端口可在 `config.json` 改（`http_host` / `http_port`）；stdio 与 HTTP 两种模式可同时分开跑（各起一个进程即可）
+在 grok.com 的连接器配置里：URL 填连接器地址，认证方式填 Bearer token / API key，
+值为 token；不支持认证配置的客户端直接用带 `?key=` 的完整地址。
+
+隧道模式的认证是**强制**的（公网暴露没钥匙等于裸奔）：三种方式任选 ——
+`?key=<token>` 查询参数、`Authorization: Bearer <token>`、`X-API-Key: <token>`。
+
+注意：
+- ngrok 免费版每次重启地址会变，重启后去 grok.com 改连接器 URL 即可（token 不变）；
+  想固定地址需要在 ngrok 控制台建静态域，再加进 `config.json` 的 `ngrok_domain`
+- 无状态实现，POST JSON-RPC 回 `application/json`，CORS 全开；Ctrl+C 退出会一并收掉 ngrok
+- 端口占用会直接报错退出（不会像之前那样静默抢流量）
 
 ## 工具（16 个）
 

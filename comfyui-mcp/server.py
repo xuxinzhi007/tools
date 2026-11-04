@@ -17,6 +17,9 @@ import os
 import subprocess
 import sys
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -915,10 +918,84 @@ def http_bind(cli_value=""):
     return (CONFIG.get("http_host") or "127.0.0.1"), int(CONFIG.get("http_port") or 8189)
 
 
-def serve_http(host, port):
+def _bind_token():
+    """取访问令牌：config / 环境变量；隧道模式下没配则自动生成一个。"""
+    token = CONFIG.get("http_token") or os.environ.get("COMFYUI_MCP_HTTP_TOKEN") or ""
+    return token
+
+
+# ------------------------------------------------------------- ngrok 隧道
+# 移植自 quality-gate/ngrok.go 的玩法：拉 ngrok http <port>，
+# 轮询本机 4040..4050 的 /api/tunnels 拿公网 https 地址，打印可直接粘到
+# grok.com/connectors → Custom 的连接器 URL。
+
+
+def _fetch_ngrok_url(api_url, port):
+    try:
+        with urllib.request.urlopen(api_url, timeout=2) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except Exception:  # noqa: BLE001
+        return ""
+    tunnels = data.get("tunnels") or []
+    for t in tunnels:
+        if t.get("proto") != "https":
+            continue
+        addr = str((t.get("config") or {}).get("addr") or "")
+        if f":{port}" in addr:
+            return str(t.get("public_url") or "").rstrip("/")
+    for t in tunnels:  # 没匹配到端口的，退而取第一个 https
+        if t.get("proto") == "https":
+            return str(t.get("public_url") or "").rstrip("/")
+    return ""
+
+
+def _discover_ngrok(port):
+    for p in range(4040, 4051):
+        url = _fetch_ngrok_url(f"http://127.0.0.1:{p}/api/tunnels", port)
+        if url:
+            return url
+    return ""
+
+
+def _launch_ngrok(port):
+    """启动 ngrok 子进程；已存在可用隧道则复用。返回 (public_url, proc_or_None)。"""
+    existing = _discover_ngrok(port)
+    if existing:
+        log(f"ngrok 已在跑，复用隧道：{existing}")
+        return existing, None
+
+    import shutil
+    import subprocess
+
+    exe = shutil.which("ngrok")
+    if not exe:
+        raise RuntimeError("找不到 ngrok。去 https://ngrok.com 下载并 ngrok config add-authtoken <token>")
+    proc = subprocess.Popen(
+        [exe, "http", str(port)],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        stdin=subprocess.DEVNULL,
+    )
+
+    import time
+
+    deadline = time.time() + 30
+    while time.time() < deadline:
+        url = _discover_ngrok(port)
+        if url:
+            log(f"ngrok 隧道就绪：{url}")
+            return url, proc
+        if proc.poll() is not None:
+            raise RuntimeError(f"ngrok 进程退出了（code={proc.returncode}），检查 authtoken：ngrok config add-authtoken <token>")
+        time.sleep(0.5)
+    proc.kill()
+    raise RuntimeError("等了 30s 还没拿到 ngrok 公网地址")
+
+
+def serve_http(host, port, token="", tunnel=False):
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-    token = CONFIG.get("http_token") or os.environ.get("COMFYUI_MCP_HTTP_TOKEN") or ""
+    token = token or _bind_token()
 
     class Handler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.1"
@@ -943,6 +1020,15 @@ def serve_http(host, port):
         def _authorized(self):
             if not token:
                 return True
+            # 1) URL 里带 ?key=<token>（给没有认证配置入口的客户端用，地址自带钥匙）
+            try:
+                import urllib.parse as _up
+                qs = _up.parse_qs(_up.urlparse(self.path).query)
+                if (qs.get("key") or [""])[0] == token:
+                    return True
+            except Exception:  # noqa: BLE001
+                pass
+            # 2) 标准头：Authorization: Bearer <token> 或 X-API-Key: <token>
             auth = (self.headers.get("Authorization") or "").strip()
             supplied = auth[7:].strip() if auth.lower().startswith("bearer ") else auth
             supplied = supplied or (self.headers.get("X-API-Key") or "").strip()
@@ -1012,25 +1098,74 @@ def serve_http(host, port):
         def log_message(self, fmt, *args):
             log("http:", fmt % args)
 
-    httpd = ThreadingHTTPServer((host, port), Handler)
-    httpd.daemon_threads = True
-    shown = "127.0.0.1" if host in ("0.0.0.0", "") else host
-    log(f"HTTP 模式监听 http://{host}:{port}/mcp （令牌：{'开启' if token else '未设置'}）")
-    log(f"网页客户端填这个地址：http://{shown}:{port}/mcp；局域网设备把 host 换成本机 IP")
+    class Server(ThreadingHTTPServer):
+        daemon_threads = True
+        # Windows 下 SO_REUSEADDR 会允许两个进程同时绑同一端口、静默抢流量
+        # （实测踩过：旧实例无令牌却接住了隧道请求）。关掉它，占用时直接报错。
+        allow_reuse_address = False
+
+    try:
+        httpd = Server((host, port), Handler)
+    except OSError as exc:
+        print(f"[comfyui-mcp] 端口 {port} 绑定失败：{exc}\n"
+              f"可能已有一个实例在跑。查一下：netstat -ano | findstr :{port}\n"
+              f"或换个端口：--http 127.0.0.1:{port + 1}", file=sys.stderr, flush=True)
+        raise SystemExit(1)
+
+    ngrok_proc = None
+    if tunnel:
+        if not token:
+            import secrets
+
+            token = secrets.token_hex(16)  # 公网暴露必须带钥匙
+        public_url, ngrok_proc = _launch_ngrok(port)
+        mcp_url = f"{public_url}/mcp"
+        os.makedirs(RUN_DIR, exist_ok=True)
+        with open(os.path.join(RUN_DIR, "tunnel.url"), "w", encoding="utf-8") as fh:
+            fh.write(f"{mcp_url}?key={token}\n{mcp_url}\ntoken={token}\n")
+        banner = [
+            "",
+            "=" * 68,
+            " 隧道已就绪 —— 网页版 Grok 接入信息（grok.com → 连接器/MCP → Custom）",
+            "=" * 68,
+            f" 连接器 URL：  {mcp_url}",
+            f" 认证 token：  {token}",
+            "",
+            " · 认证方式三选一：",
+            f"   1) URL 直接带钥匙（粘贴这个）：{mcp_url}?key={token}",
+            "   2) 客户端认证配置里填 Bearer token / API key",
+            "   3) 表头 X-API-Key",
+            f" · 已写入 {os.path.join(RUN_DIR, 'tunnel.url')}，Ctrl+C 退出会一并收掉 ngrok",
+            "=" * 68,
+            "",
+        ]
+        for line in banner:
+            print(line, file=sys.stderr, flush=True)
+    else:
+        shown = "127.0.0.1" if host in ("0.0.0.0", "") else host
+        log(f"HTTP 模式监听 http://{host}:{port}/mcp （令牌：{'开启' if token else '未设置'}）")
+        log(f"网页客户端填这个地址：http://{shown}:{port}/mcp；局域网设备把 host 换成本机 IP")
     try:
         httpd.serve_forever()
     finally:
         httpd.server_close()
+        if ngrok_proc is not None:
+            try:
+                ngrok_proc.kill()
+            except Exception:  # noqa: BLE001
+                pass
 
 
 if __name__ == "__main__":
     try:
         argv = sys.argv[1:]
-        if argv and argv[0] == "--http":
-            # python server.py --http 0.0.0.0:8189   或 --http :8189（全网卡）
+        if argv and argv[0] in ("--http", "--tunnel"):
+            # python server.py --http 0.0.0.0:8189   局域网直连
+            # python server.py --tunnel              自动起 ngrok 公网隧道（给网页版 Grok）
             _utf8_stdio()
+            tunnel = argv[0] == "--tunnel"
             host, port = http_bind(argv[1] if len(argv) > 1 else "")
-            serve_http(host, port)
+            serve_http(host, port, tunnel=tunnel)
         else:
             main()  # 默认 stdio
     except KeyboardInterrupt:
