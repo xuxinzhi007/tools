@@ -63,9 +63,21 @@ def list_scenarios(project_id: int, branch_id: int) -> dict:
 
 
 @mcp.tool()
-def get_scenario(project_id: int, branch_id: int, scenario_id: int) -> dict:
-    """读取场景步骤：方法、路径、请求体摘要、后置操作类型。"""
-    return a.get_scenario(project_id, branch_id, scenario_id)
+def get_scenario(project_id: int, branch_id: int, scenario_id: int, full: bool = False) -> dict:
+    """读取场景步骤：方法、路径、请求体摘要、后置操作类型。full=True 返回原始完整步骤，含 database 步骤与 customScript 全文。"""
+    return a.get_scenario(project_id, branch_id, scenario_id, full=full)
+
+
+@mcp.tool()
+def snapshot_scenario(project_id: int, branch_id: int, scenario_id: int, path: str | None = None) -> dict:
+    """备份场景为完整 JSON。给了 path 就写文件并返回摘要，否则直接返回 JSON。改场景前先跑一次。"""
+    return a.snapshot_scenario(project_id, branch_id, scenario_id, path)
+
+
+@mcp.tool()
+def restore_scenario(project_id: int, branch_id: int, scenario_id: int, snapshot: str) -> dict:
+    """用 snapshot_scenario 的产物（文件路径或 JSON 字符串）整体回写场景。"""
+    return a.restore_scenario(project_id, branch_id, scenario_id, snapshot)
 
 
 @mcp.tool()
@@ -79,12 +91,15 @@ def create_scenario(
     folder_id: int = 0,
     reuse_existing: bool = True,
 ) -> dict:
-    """在自动化分支上创建场景并写入 HTTP 步骤。
+    """在自动化分支上创建场景并写入步骤。
 
     同名场景默认直接返回、不复制一份。步骤会带上现有环境的 x-xr-auth-* 和 {{access_token}}。不会运行场景。
 
     Args:
-        steps: 每项形如 {"name": str, "endpoint_id": int, "path": str, "method": str, "body": str, "script": str, "assertions": list}。
+        steps: 每项形如
+            HTTP: {"name": str, "endpoint_id": int, "path": str, "method": str, "body": str|dict, "script": str, "assertions": list}
+                  传 raw=<原始 step dict>（来自 get_scenario(full=True)）可原样保留接口绑定与后置脚本。
+            DB:   {"type": "database", "name": str, "sql": str, "connection_id": int}
     """
     return a.create_scenario(project_id, branch_id, name, description, steps, priority, folder_id, reuse_existing)
 
@@ -100,7 +115,11 @@ def update_scenario(
     priority: int = 2,
     folder_id: int = 0,
 ) -> dict:
-    """覆盖已有场景的步骤。用于修正请求体、断言和后置脚本。不会运行场景。"""
+    """覆盖已有场景的步骤。用于修正请求体、断言和后置脚本。不会运行场景。
+
+    steps 支持 HTTP 步骤与 {"type":"database","name","sql","connection_id"} 数据库步骤；
+    也可直接传 get_scenario(full=True) 拿到的原始 step（带 raw 字段）原样回写。
+    """
     return a.update_scenario(project_id, branch_id, scenario_id, name, description, steps, priority, folder_id)
 
 

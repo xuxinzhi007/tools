@@ -11,6 +11,7 @@ API = "https://api.apifox.com/api/v1"
 API_VERSION = "2026-05-28"
 CLI_VERSION = "2.2.11"
 DEFAULT_PROJECT = 8013009
+DEFAULT_CONNECTION_ID = 149800
 CONFIG = Path(__file__).with_name("config.yaml")
 
 AUTH_HEADER_NAMES = (
@@ -148,11 +149,14 @@ def list_scenarios(project_id, branch_id):
     return [{"id": s.get("id"), "name": s.get("name"), "priority": s.get("priority"), "folderId": s.get("folderId")} for s in data.get("testScenarios") or []]
 
 
-def scenario_summary(scenario):
+def scenario_summary(scenario, full=False):
     steps = []
     for step in scenario.get("steps") or []:
         case = step.get("httpApiCase") or {}
         body = ((case.get("requestBody") or {}).get("data") or "").replace("\n", " ")
+        if full:
+            steps.append(step)
+            continue
         steps.append({
             "number": step.get("number"),
             "type": step.get("type"),
@@ -162,13 +166,18 @@ def scenario_summary(scenario):
             "bindId": step.get("bindId"),
             "processors": [p.get("type") for p in (case.get("postProcessors") or [])],
             "body": body[:180],
+            "database": ((step.get("parameters") or {}).get("data") or {}).get("expression"),
         })
-    return {"id": scenario.get("id"), "name": scenario.get("name"), "description": scenario.get("description"), "steps": steps}
+    out = {"id": scenario.get("id"), "name": scenario.get("name"), "description": scenario.get("description"), "steps": steps}
+    if full:
+        out["priority"] = scenario.get("priority")
+        out["folderId"] = scenario.get("folderId")
+    return out
 
 
-def get_scenario(project_id, branch_id, scenario_id):
+def get_scenario(project_id, branch_id, scenario_id, full=False):
     data = ok(api("GET", "/api-test/cases/%s/steps?withCaseDetail=true" % scenario_id, project_id=project_id, branch_id=branch_id))
-    return scenario_summary(data)
+    return scenario_summary(data, full=full)
 
 
 def _assertion(index, item):
@@ -188,6 +197,26 @@ def _assertion(index, item):
 
 
 def _http_step(scenario_id, number, step):
+    raw = step.get("raw")
+    if raw:
+        built = json.loads(json.dumps(raw))
+        built["number"] = number
+        case = built.setdefault("httpApiCase", {})
+        # Apifox 对已有 case 会沿用服务端保存的请求体，忽略本次传入的值。
+        # 改请求体/断言时必须清空 id 与 relatedId，让服务端按新内容重建用例。
+        if step.get("rebuild"):
+            built["id"] = secrets.token_hex(16)
+            built["relatedId"] = None
+            if case.get("id"):
+                case["id"] = None
+        built.setdefault("id", secrets.token_hex(16))
+        case["testSuiteId"] = scenario_id
+        case["projectId"] = int(step.get("project_id") or DEFAULT_PROJECT)
+        if step.get("name"):
+            built["name"] = step["name"]
+            case["name"] = step["name"]
+        return built
+
     headers = [{
         "id": secrets.token_hex(5),
         "relatedName": name,
@@ -209,6 +238,9 @@ def _http_step(scenario_id, number, step):
             "data": script,
         })
     endpoint_id = int(step["endpoint_id"])
+    body = step.get("body")
+    if isinstance(body, (dict, list)):
+        body = json.dumps(body, ensure_ascii=False, indent=2) + "\n"
     return {
         "id": secrets.token_hex(16),
         "type": "http",
@@ -231,7 +263,7 @@ def _http_step(scenario_id, number, step):
             "requestBody": {
                 "parameters": [],
                 "type": "application/json",
-                "data": step.get("body") or "{}\n",
+                "data": body or "{}\n",
                 "generateMode": "normal",
             },
             "apiDetailId": endpoint_id,
@@ -248,12 +280,38 @@ def _http_step(scenario_id, number, step):
     }
 
 
+def _database_step(number, step):
+    return {
+        "id": secrets.token_hex(16),
+        "type": "database",
+        "disable": bool(step.get("disable")),
+        "parameters": {
+            "enable": True,
+            "defaultEnable": True,
+            "type": "database",
+            "data": {
+                "name": "",
+                "expression": step["sql"],
+                "variableType": "local",
+                "extractFirstRecord": True,
+                "connectionId": int(step.get("connection_id") or DEFAULT_CONNECTION_ID),
+            },
+        },
+        "name": step["name"],
+        "number": number,
+    }
+
+
+def _build_step(scenario_id, number, step):
+    if step.get("type") == "database":
+        return _database_step(number, step)
+    step = dict(step)
+    step.setdefault("project_id", DEFAULT_PROJECT)
+    return _http_step(scenario_id, number, step)
+
+
 def _write_steps(project_id, branch_id, scenario_id, name, description, steps, priority, folder_id):
-    built = []
-    for index, step in enumerate(steps, start=1):
-        step = dict(step)
-        step["project_id"] = project_id
-        built.append(_http_step(scenario_id, index, step))
+    built = [_build_step(scenario_id, number, step) for number, step in enumerate(steps, start=1)]
     ok(api("PUT", "/api-test/cases/%s" % scenario_id, {
         "id": scenario_id,
         "name": name,
@@ -283,5 +341,29 @@ def create_scenario(project_id, branch_id, name, description, steps, priority=2,
 def update_scenario(project_id, branch_id, scenario_id, name, description, steps, priority=2, folder_id=0):
     scenario = _write_steps(project_id, branch_id, int(scenario_id), name, description, steps, priority, folder_id)
     return {"updated": True, "scenario": scenario}
+
+
+def snapshot_scenario(project_id, branch_id, scenario_id, path=None):
+    data = get_scenario(project_id, branch_id, int(scenario_id), full=True)
+    if path:
+        target = Path(path).expanduser()
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(json.dumps(data, ensure_ascii=False, indent=1))
+        return {"saved": str(target), "steps": len(data.get("steps") or [])}
+    return data
+
+
+def restore_scenario(project_id, branch_id, scenario_id, snapshot):
+    if isinstance(snapshot, str):
+        snapshot = json.loads(Path(snapshot).expanduser().read_text())
+    ok(api("PUT", "/api-test/cases/%s" % int(scenario_id), {
+        "id": int(scenario_id),
+        "name": snapshot["name"],
+        "description": snapshot.get("description") or "",
+        "priority": int(snapshot.get("priority") or 2),
+        "folderId": int(snapshot.get("folderId") or 0),
+        "steps": snapshot.get("steps") or [],
+    }, project_id=project_id, branch_id=branch_id))
+    return {"restored": True, "scenario": get_scenario(project_id, branch_id, int(scenario_id))}
 
 
