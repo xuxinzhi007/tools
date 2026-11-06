@@ -1,0 +1,1640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>角色档案 · 身体与生活数据</title>
+    <!-- 干净、现代的字体与布局 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <!-- Font Awesome 6 免费图标库 (用于生活数据的小图标) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(145deg, #f6f8fc 0%, #eef2f7 100%);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            padding: 2rem 1.5rem;
+            min-height: 100vh;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            color: #1e293b;
+        }
+
+        .character-sheet {
+            max-width: 1300px;
+            width: 100%;
+            background: rgba(255,255,255,0.75);
+            backdrop-filter: blur(8px);
+            border-radius: 2.5rem;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.6) inset;
+            padding: 2rem 2rem 2.5rem;
+            transition: all 0.2s;
+        }
+
+        /* 头部区域：角色名 + 基本描述 */
+        .character-header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 1.8rem;
+            margin-bottom: 2.5rem;
+            padding-bottom: 1.8rem;
+            border-bottom: 2px dashed #cbd5e1;
+        }
+
+        .avatar-placeholder {
+            width: 90px;
+            height: 90px;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            border-radius: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.8rem;
+            font-weight: 700;
+            color: white;
+            box-shadow: 0 12px 18px -8px rgba(59,130,246,0.5);
+            flex-shrink: 0;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .title-section {
+            flex: 1;
+            min-width: 260px;
+        }
+
+        .title-section h1 {
+            font-size: 2.4rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: #0f172a;
+            line-height: 1.2;
+            margin-bottom: 0.3rem;
+        }
+
+        .title-section .subhead {
+            font-size: 1rem;
+            font-weight: 400;
+            color: #64748b;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem 1.5rem;
+            align-items: center;
+        }
+
+        .title-section .subhead i {
+            margin-right: 0.4rem;
+            color: #3b82f6;
+            width: 1.1rem;
+        }
+
+        .badge-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+            margin-top: 0.6rem;
+        }
+
+        .badge {
+            background: #e2e8f0;
+            color: #1e293b;
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 0.25rem 0.9rem;
+            border-radius: 999px;
+            letter-spacing: 0.02em;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            border: 1px solid #ffffff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+
+        .badge i {
+            font-size: 0.75rem;
+            color: #3b82f6;
+        }
+
+        /* 头部右侧：核心指标速览 */
+        .header-metrics {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(72px, 1fr));
+            gap: 0.65rem;
+            min-width: 300px;
+        }
+
+        .metric-chip {
+            background: #ffffffcc;
+            border: 1px solid #ffffff;
+            border-radius: 1.1rem;
+            padding: 0.6rem 0.7rem;
+            text-align: center;
+            box-shadow: 0 6px 14px -10px rgba(15,23,42,0.35);
+        }
+
+        .metric-chip .metric-value {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #0b1e33;
+            line-height: 1.1;
+        }
+
+        .metric-chip .metric-label {
+            font-size: 0.68rem;
+            color: #64748b;
+            font-weight: 600;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            margin-top: 0.15rem;
+        }
+
+        /* 双栏核心数据区 */
+        .data-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            align-items: start;
+        }
+
+        /* 卡片通用样式 */
+        .data-card {
+            background: #ffffffd9;
+            backdrop-filter: blur(4px);
+            border-radius: 1.8rem;
+            padding: 1.8rem 1.8rem 1.9rem;
+            box-shadow: 0 10px 20px -10px rgba(0,0,0,0.08), 0 0 0 1px rgba(255,255,255,0.8) inset;
+            border: 1px solid #ffffff;
+            transition: transform 0.15s ease;
+        }
+
+        .data-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 20px 28px -14px rgba(0,0,0,0.15), 0 0 0 1px #ffffff inset;
+        }
+
+        .data-card + .data-card {
+            margin-top: 2rem;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+            border-bottom: 1px solid #e9eef3;
+            padding-bottom: 0.9rem;
+        }
+
+        .card-header i {
+            font-size: 1.5rem;
+            color: #3b82f6;
+            background: #eef4ff;
+            padding: 0.5rem;
+            border-radius: 1rem;
+            width: 2.6rem;
+            height: 2.6rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .card-header h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+            color: #0b1e33;
+            flex: 1;
+        }
+
+        .card-header .card-meta {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #64748b;
+            background: #f1f5f9;
+            border-radius: 999px;
+            padding: 0.2rem 0.7rem;
+            white-space: nowrap;
+        }
+
+        /* 数据列表 ———— 采用栅格布局 */
+        .stats-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1.1rem;
+        }
+
+        .stat-row {
+            display: flex;
+            align-items: flex-start;
+            font-size: 0.98rem;
+            line-height: 1.45;
+            border-bottom: 1px dashed #e2e8f0;
+            padding-bottom: 0.8rem;
+        }
+
+        .stat-row:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .stat-label {
+            font-weight: 600;
+            color: #334155;
+            width: 130px;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .stat-label i {
+            color: #64748b;
+            font-size: 0.9rem;
+            width: 1.2rem;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-weight: 400;
+            color: #0f172a;
+            flex: 1;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.4rem 0.8rem;
+        }
+
+        .stat-value .unit {
+            font-size: 0.8rem;
+            color: #64748b;
+            font-weight: 500;
+            background: #f1f5f9;
+            padding: 0.1rem 0.5rem;
+            border-radius: 999px;
+        }
+
+        .stat-value strong {
+            font-weight: 700;
+            color: #0b1e33;
+            margin-right: 0.1rem;
+        }
+
+        .stat-value .note {
+            font-size: 0.78rem;
+            color: #64748b;
+            font-style: italic;
+            margin-left: 0.2rem;
+        }
+
+        /* 特殊样式：生命体征高亮 */
+        .vital-highlight {
+            background: #f0f9ff;
+            border-radius: 2rem;
+            padding: 0.8rem 1.2rem;
+            margin: 0.4rem 0 0.2rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem 2rem;
+            border: 1px solid #b8dfff;
+        }
+
+        .vital-item {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .vital-item i {
+            font-size: 1.1rem;
+            color: #0284c7;
+            width: 1.6rem;
+        }
+
+        .vital-item span {
+            font-weight: 600;
+            color: #0369a1;
+        }
+
+        .vital-item .small-unit {
+            font-size: 0.8rem;
+            color: #3b82f6;
+            font-weight: 400;
+        }
+
+        /* 指标进度条（身体组成的可视化） */
+        .bar-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.85rem;
+        }
+
+        .bar-item .bar-top {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.82rem;
+            margin-bottom: 0.3rem;
+        }
+
+        .bar-item .bar-top span:first-child {
+            font-weight: 600;
+            color: #334155;
+        }
+
+        .bar-item .bar-top span:last-child {
+            font-weight: 600;
+            color: #0f172a;
+        }
+
+        .bar-track {
+            height: 8px;
+            background: #e9eef3;
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .bar-fill {
+            height: 100%;
+            border-radius: 999px;
+            background: linear-gradient(90deg, #60a5fa, #3b82f6);
+        }
+
+        .bar-fill.green { background: linear-gradient(90deg, #6ee7b7, #10b981); }
+        .bar-fill.amber { background: linear-gradient(90deg, #fcd34d, #f59e0b); }
+        .bar-fill.violet { background: linear-gradient(90deg, #c4b5fd, #8b5cf6); }
+
+        .bar-scale {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.68rem;
+            color: #94a3b8;
+            margin-top: 0.25rem;
+        }
+
+        /* 周趋势柱状图 */
+        .chart-wrap {
+            background: #f8fafc;
+            border: 1px solid #e9eef3;
+            border-radius: 1.2rem;
+            padding: 1rem 1rem 0.7rem;
+        }
+
+        .chart-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #475569;
+            margin-bottom: 0.75rem;
+        }
+
+        .chart-title em {
+            font-style: normal;
+            font-size: 0.7rem;
+            font-weight: 500;
+            color: #94a3b8;
+        }
+
+        .bar-chart {
+            display: flex;
+            align-items: flex-end;
+            gap: 0.45rem;
+            height: 96px;
+        }
+
+        .bar-col {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            height: 100%;
+            gap: 0.35rem;
+        }
+
+        .bar-col .bar {
+            width: 100%;
+            max-width: 28px;
+            border-radius: 6px 6px 3px 3px;
+            background: linear-gradient(180deg, #93c5fd, #3b82f6);
+            position: relative;
+        }
+
+        .bar-col.hot .bar {
+            background: linear-gradient(180deg, #fdba74, #f97316);
+        }
+
+        .bar-col .bar-val {
+            font-size: 0.62rem;
+            font-weight: 700;
+            color: #475569;
+        }
+
+        .bar-col .bar-day {
+            font-size: 0.66rem;
+            color: #94a3b8;
+            font-weight: 600;
+        }
+
+        /* 表格样式（训练/医疗记录） */
+        .mini-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+
+        .mini-table th {
+            text-align: left;
+            font-size: 0.7rem;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            color: #64748b;
+            font-weight: 700;
+            padding: 0 0.5rem 0.5rem;
+            border-bottom: 1px solid #e9eef3;
+            white-space: nowrap;
+        }
+
+        .mini-table td {
+            padding: 0.55rem 0.5rem;
+            border-bottom: 1px dashed #eef2f7;
+            color: #0f172a;
+            vertical-align: middle;
+        }
+
+        .mini-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .mini-table td:first-child {
+            font-weight: 600;
+            color: #334155;
+            white-space: nowrap;
+        }
+
+        .mini-table td.num {
+            font-variant-numeric: tabular-nums;
+            font-weight: 600;
+        }
+
+        .pill {
+            display: inline-block;
+            font-size: 0.68rem;
+            font-weight: 700;
+            padding: 0.1rem 0.55rem;
+            border-radius: 999px;
+            letter-spacing: 0.02em;
+            white-space: nowrap;
+        }
+
+        .pill.ok { background: #dcfce7; color: #15803d; }
+        .pill.warn { background: #fef3c7; color: #b45309; }
+        .pill.info { background: #e0e7ff; color: #4338ca; }
+        .pill.mute { background: #f1f5f9; color: #475569; }
+
+        /* 生活数据区域一些小装饰 */
+        .hobby-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.4rem;
+        }
+
+        .hobby-tag {
+            background: #eef2ff;
+            color: #4338ca;
+            font-size: 0.8rem;
+            font-weight: 500;
+            padding: 0.2rem 0.9rem;
+            border-radius: 999px;
+            border: 1px solid #c7d2fe;
+        }
+
+        /* 技能雷达替代：横向评分条 */
+        .rating-row {
+            display: flex;
+            align-items: center;
+            gap: 0.7rem;
+            font-size: 0.85rem;
+        }
+
+        .rating-row .rating-name {
+            width: 88px;
+            flex-shrink: 0;
+            font-weight: 600;
+            color: #334155;
+        }
+
+        .rating-dots {
+            display: flex;
+            gap: 0.18rem;
+            flex: 1;
+        }
+
+        .rating-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: #e2e8f0;
+        }
+
+        .rating-dot.on { background: #3b82f6; }
+        .rating-dot.on.high { background: #10b981; }
+
+        .rating-row .rating-num {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #64748b;
+            width: 2.4rem;
+            text-align: right;
+        }
+
+        /* 时间线 */
+        .timeline {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        .tl-item {
+            display: flex;
+            gap: 0.9rem;
+            font-size: 0.85rem;
+            position: relative;
+            padding-bottom: 1rem;
+        }
+
+        .tl-item:last-child {
+            padding-bottom: 0;
+        }
+
+        .tl-time {
+            width: 52px;
+            flex-shrink: 0;
+            font-weight: 700;
+            color: #3b82f6;
+            font-variant-numeric: tabular-nums;
+            font-size: 0.82rem;
+        }
+
+        .tl-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ffffff;
+            border: 2px solid #93c5fd;
+            flex-shrink: 0;
+            margin-top: 0.28rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .tl-item:not(:last-child) .tl-dot::after {
+            content: '';
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 2px;
+            height: calc(100% + 0.85rem);
+            background: #e2e8f0;
+        }
+
+        .tl-dot.done {
+            background: #3b82f6;
+            border-color: #3b82f6;
+        }
+
+        .tl-body {
+            flex: 1;
+            color: #334155;
+            line-height: 1.4;
+        }
+
+        .tl-body strong {
+            color: #0b1e33;
+            font-weight: 600;
+        }
+
+        .tl-body .tl-note {
+            display: block;
+            font-size: 0.75rem;
+            color: #94a3b8;
+            margin-top: 0.15rem;
+        }
+
+        /* 底部小彩蛋：最近一周趋势 */
+        .trend-foot {
+            margin-top: 1.5rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            font-size: 0.8rem;
+            justify-content: flex-end;
+            color: #4b5563;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 1rem;
+        }
+
+        .section-divider {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin: 2.5rem 0 1.6rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #94a3b8;
+        }
+
+        .section-divider::before,
+        .section-divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #cbd5e1, transparent);
+        }
+
+        /* 响应式：小屏幕转为单列 */
+        @media (max-width: 1080px) {
+            .header-metrics {
+                grid-template-columns: repeat(4, minmax(64px, 1fr));
+                min-width: 100%;
+            }
+        }
+
+        @media (max-width: 850px) {
+            .data-grid {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+
+            .data-card + .data-card {
+                margin-top: 1.5rem;
+            }
+
+            .character-header {
+                gap: 1rem;
+            }
+
+            .title-section h1 {
+                font-size: 2rem;
+            }
+
+            .character-sheet {
+                padding: 1.5rem;
+            }
+
+            .stat-label {
+                width: 110px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 1rem 0.8rem;
+            }
+
+            .character-sheet {
+                padding: 1.3rem 1rem;
+                border-radius: 1.8rem;
+            }
+
+            .stat-row {
+                flex-direction: column;
+                gap: 0.3rem;
+            }
+
+            .stat-label {
+                width: 100%;
+            }
+
+            .vital-highlight {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+
+            .avatar-placeholder {
+                width: 70px;
+                height: 70px;
+                font-size: 2.2rem;
+            }
+
+            .header-metrics {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .mini-table {
+                font-size: 0.78rem;
+            }
+
+            .mini-table th,
+            .mini-table td {
+                padding-left: 0.25rem;
+                padding-right: 0.25rem;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="character-sheet">
+    <!-- 头部：角色标识 -->
+    <div class="character-header">
+        <div class="avatar-placeholder">A</div>
+        <div class="title-section">
+            <h1>亚瑟 · 米勒</h1>
+            <div class="subhead">
+                <span><i class="fas fa-id-badge"></i> ID: CH-7742-AR</span>
+                <span><i class="fas fa-calendar-alt"></i> 32 岁 · 1993-04-17</span>
+                <span><i class="fas fa-flag"></i> 联合防御部 · 战术侦察</span>
+                <span><i class="fas fa-location-dot"></i> 第七区 · 北岸基地</span>
+            </div>
+            <div class="badge-group">
+                <span class="badge"><i class="fas fa-dna"></i> 基因优化 (B+)</span>
+                <span class="badge"><i class="fas fa-shield-alt"></i> 现役</span>
+                <span class="badge"><i class="fas fa-star"></i> 体能评级 S</span>
+                <span class="badge"><i class="fas fa-medal"></i> 服役 9 年 4 月</span>
+                <span class="badge"><i class="fas fa-certificate"></i> 权限等级 III</span>
+            </div>
+        </div>
+        <div class="header-metrics">
+            <div class="metric-chip">
+                <div class="metric-value">S</div>
+                <div class="metric-label">体能</div>
+            </div>
+            <div class="metric-chip">
+                <div class="metric-value">52</div>
+                <div class="metric-label">静息心率</div>
+            </div>
+            <div class="metric-chip">
+                <div class="metric-value">88%</div>
+                <div class="metric-label">睡眠质量</div>
+            </div>
+            <div class="metric-chip">
+                <div class="metric-value">A+</div>
+                <div class="metric-label">健康总分</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 双栏详细数据 -->
+    <div class="data-grid">
+        <!-- 左栏：身体数据 -->
+        <div>
+            <div class="data-card">
+                <div class="card-header">
+                    <i class="fas fa-heartbeat"></i>
+                    <h2>身体数据</h2>
+                    <span class="card-meta">测量于 07:10</span>
+                </div>
+                <div class="stats-list">
+                    <!-- 基础体征 -->
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="fas fa-ruler-vertical"></i> 身高</span>
+                        <span class="stat-value"><strong>183</strong> cm <span class="unit">厘米</span> <span class="note">(晨间测量)</span></span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="fas fa-weight-scale"></i> 体重</span>
+                        <span class="stat-value"><strong>78.5</strong> kg <span class="unit">千克</span> <span class="note">体脂率 12%</span></span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="fas fa-droplet"></i> 血型</span>
+                        <span class="stat-value"><strong>O+</strong> <span class="unit">Rh阳性</span> <span class="note">稀有抗原阴性</span></span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="fas fa-eye"></i> 视力</span>
+                        <span class="stat-value">左眼 <strong>1.5</strong> / 右眼 <strong>1.5</strong> <span class="unit">5.2 标准</span> <span class="note">色觉正常</span></span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="fas fa-lungs"></i> 肺活量</span>
+                        <span class="stat-value"><strong>5200</strong> ml <span class="unit">毫升</span> <span class="note">高于均值 25%</span></span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="fas fa-heart"></i> 静息心率</span>
+                        <span class="stat-value"><strong>52</strong> bpm <span class="unit">次/分</span> <span class="note">运动员体质</span></span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="fas fa-dumbbell"></i> 握力</span>
+                        <span class="stat-value">左 <strong>58</strong> kg / 右 <strong>62</strong> kg <span class="unit">千克</span> <span class="note">优于 92% 同龄</span></span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="fas fa-bone"></i> 骨骼肌量</span>
+                        <span class="stat-value"><strong>41.2</strong> kg <span class="unit">千克</span> <span class="note">占比 52.5%</span></span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="fas fa-dna"></i> 基因标记</span>
+                        <span class="stat-value">ACTN3 (RR型) · ACE (II型) <span class="note">爆发力优势</span></span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="fas fa-allergies"></i> 过敏源</span>
+                        <span class="stat-value">青霉素、花粉 (轻微) <span class="note">已脱敏治疗</span></span>
+                    </div>
+                </div>
+
+                <!-- 实时生命体征小面板 -->
+                <div class="vital-highlight">
+                    <div class="vital-item">
+                        <i class="fas fa-heartbeat"></i>
+                        <span>72 bpm</span>
+                        <span class="small-unit">当前心率</span>
+                    </div>
+                    <div class="vital-item">
+                        <i class="fas fa-temperature-high"></i>
+                        <span>36.6 °C</span>
+                        <span class="small-unit">体温</span>
+                    </div>
+                    <div class="vital-item">
+                        <i class="fas fa-wind"></i>
+                        <span>16 次/分</span>
+                        <span class="small-unit">呼吸</span>
+                    </div>
+                    <div class="vital-item">
+                        <i class="fas fa-tint"></i>
+                        <span>118/76</span>
+                        <span class="small-unit">血压 mmHg</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 身体组成细分 -->
+            <div class="data-card">
+                <div class="card-header">
+                    <i class="fas fa-chart-simple"></i>
+                    <h2>身体组成</h2>
+                    <span class="card-meta">InBody 970</span>
+                </div>
+                <div class="bar-group">
+                    <div class="bar-item">
+                        <div class="bar-top"><span>肌肉量</span><span>41.2 kg / 52.5%</span></div>
+                        <div class="bar-track"><div class="bar-fill green" style="width: 52.5%"></div></div>
+                        <div class="bar-scale"><span>偏低 40%</span><span>标准 45%</span><span>优秀 50%</span></div>
+                    </div>
+                    <div class="bar-item">
+                        <div class="bar-top"><span>体脂率</span><span>12.0%</span></div>
+                        <div class="bar-track"><div class="bar-fill amber" style="width: 30%"></div></div>
+                        <div class="bar-scale"><span>必需 5%</span><span>标准 15%</span><span>偏高 25%</span></div>
+                    </div>
+                    <div class="bar-item">
+                        <div class="bar-top"><span>去脂体重</span><span>69.1 kg</span></div>
+                        <div class="bar-track"><div class="bar-fill" style="width: 88%"></div></div>
+                        <div class="bar-scale"><span>FFM 69.1 kg · 基础代谢 1842 kcal</span></div>
+                    </div>
+                    <div class="bar-item">
+                        <div class="bar-top"><span>内脏脂肪等级</span><span>4 / 20</span></div>
+                        <div class="bar-track"><div class="bar-fill green" style="width: 20%"></div></div>
+                        <div class="bar-scale"><span>安全 ≤ 9</span></div>
+                    </div>
+                    <div class="bar-item">
+                        <div class="bar-top"><span>身体水分</span><span>45.6 L / 58.1%</span></div>
+                        <div class="bar-track"><div class="bar-fill" style="width: 58.1%"></div></div>
+                        <div class="bar-scale"><span>细胞内 28.9 L · 细胞外 16.7 L</span></div>
+                    </div>
+                    <div class="bar-item">
+                        <div class="bar-top"><span>骨密度 T 值</span><span>+1.2</span></div>
+                        <div class="bar-track"><div class="bar-fill violet" style="width: 74%"></div></div>
+                        <div class="bar-scale"><span>骨质疏松 &lt; -2.5 · 正常 ≥ -1.0</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 运动表现 -->
+            <div class="data-card">
+                <div class="card-header">
+                    <i class="fas fa-person-running"></i>
+                    <h2>运动表现</h2>
+                    <span class="card-meta">季度测试 · 03/14</span>
+                </div>
+                <table class="mini-table">
+                    <thead>
+                    <tr>
+                        <th>项目</th>
+                        <th>成绩</th>
+                        <th>标准</th>
+                        <th>评级</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>5 km 跑</td>
+                        <td class="num">18:42</td>
+                        <td>21:30</td>
+                        <td><span class="pill ok">优秀</span></td>
+                    </tr>
+                    <tr>
+                        <td>1.5 km 冲刺</td>
+                        <td class="num">4:51</td>
+                        <td>5:40</td>
+                        <td><span class="pill ok">优秀</span></td>
+                    </tr>
+                    <tr>
+                        <td>引体向上</td>
+                        <td class="num">24 次</td>
+                        <td>12 次</td>
+                        <td><span class="pill ok">优秀</span></td>
+                    </tr>
+                    <tr>
+                        <td>卧推 1RM</td>
+                        <td class="num">105 kg</td>
+                        <td>80 kg</td>
+                        <td><span class="pill ok">优秀</span></td>
+                    </tr>
+                    <tr>
+                        <td>深蹲 1RM</td>
+                        <td class="num">150 kg</td>
+                        <td>110 kg</td>
+                        <td><span class="pill ok">优秀</span></td>
+                    </tr>
+                    <tr>
+                        <td>垂直弹跳</td>
+                        <td class="num">68 cm</td>
+                        <td>55 cm</td>
+                        <td><span class="pill ok">优秀</span></td>
+                    </tr>
+                    <tr>
+                        <td>反应时</td>
+                        <td class="num">182 ms</td>
+                        <td>230 ms</td>
+                        <td><span class="pill ok">优秀</span></td>
+                    </tr>
+                    <tr>
+                        <td>最大摄氧量</td>
+                        <td class="num">58.4 ml/kg</td>
+                        <td>45 ml/kg</td>
+                        <td><span class="pill info">顶尖 5%</span></td>
+                    </tr>
+                    <tr>
+                        <td>单杠悬垂</td>
+                        <td class="num">1:48</td>
+                        <td>1:00</td>
+                        <td><span class="pill ok">优秀</span></td>
+                    </tr>
+                    <tr>
+                        <td>25 m 屏息</td>
+                        <td class="num">47 秒</td>
+                        <td>30 秒</td>
+                        <td><span class="pill info">顶尖 5%</span></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 医疗与健康 -->
+            <div class="data-card">
+                <div class="card-header">
+                    <i class="fas fa-notes-medical"></i>
+                    <h2>医疗与健康</h2>
+                    <span class="card-meta">上次体检 02/28</span>
+                </div>
+                <div class="stats-list">
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="fas fa-notes-medical"></i> 体检结论</span>
+                        <span class="stat-value"><span class="pill ok">合格 · A+</span> 无限制项 <span class="note">下次复查 08/28</span></span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="fas fa-scissors"></i> 手术史</span>
+                        <span class="stat-value">左膝半月板修复 (2021) <span class="note">已完全康复</span></span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="fas fa-capsules"></i> 长期用药</span>
+                        <span class="stat-value">维生素 D3 2000 IU <span class="unit">每日</span> <span class="note">冬季加补</span></span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="fas fa-syringe"></i> 疫苗状态</span>
+                        <span class="stat-value"><span class="pill ok">全项有效</span> 破伤风 2024-11 · 流感 2025-10</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="fas fa-tooth"></i> 口腔</span>
+                        <span class="stat-value">0 龋齿 · 牙周健康 <span class="unit">1 次/6 月</span></span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="fas fa-brain"></i> 心理评估</span>
+                        <span class="stat-value">PHQ-9 <strong>2</strong> / GAD-7 <strong>3</strong> <span class="note">无临床意义</span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右栏：生活数据 -->
+        <div>
+            <div class="data-card">
+                <div class="card-header">
+                    <i class="fas fa-chart-line"></i>
+                    <h2>生活数据</h2>
+                    <span class="card-meta">近 30 天均值</span>
+                </div>
+                <div class="stats-list">
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="fas fa-moon"></i> 睡眠</span>
+                        <span class="stat-value"><strong>7h 25m</strong> <span class="unit">平均</span> 深睡 1h50m <span class="note">质量 88%</span></span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="fas fa-utensils"></i> 饮食</span>
+                        <span class="stat-value">每日摄入 <strong>2750</strong> kcal <span class="unit">千卡</span> 蛋白质 145g</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="fas fa-person-walking"></i> 日常步数</span>
+                        <span class="stat-value"><strong>12,400</strong> 步 <span class="unit">平均/天</span> 距离 8.7 km</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="fas fa-dumbbell"></i> 运动频率</span>
+                        <span class="stat-value"><strong>5</strong> 次/周 <span class="unit">力量+有氧</span> 总时长 6.5h</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="fas fa-book"></i> 阅读</span>
+                        <span class="stat-value"><strong>2.5</strong> 小时/天 <span class="unit">书籍</span> 偏好科幻/战术 <span class="note">本年 24 本</span></span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="fas fa-mobile-screen"></i> 屏幕时间</span>
+                        <span class="stat-value"><strong>3.2</strong> 小时/天 <span class="unit">移动端</span> 较上周 ↓ 12%</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="fas fa-mug-hot"></i> 咖啡因</span>
+                        <span class="stat-value"><strong>2</strong> 杯/天 <span class="unit">美式</span> <span class="note">无糖，14:00 前</span></span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="fas fa-water"></i> 饮水</span>
+                        <span class="stat-value"><strong>2.8</strong> L / 天 <span class="unit">升</span> 达标率 96%</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="fas fa-palette"></i> 爱好</span>
+                        <span class="stat-value">
+                            <div class="hobby-tags">
+                                <span class="hobby-tag">攀岩</span>
+                                <span class="hobby-tag">战术射击</span>
+                                <span class="hobby-tag">模型制作</span>
+                                <span class="hobby-tag">观星</span>
+                            </div>
+                        </span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="fas fa-clock"></i> 日常节奏</span>
+                        <span class="stat-value">06:30 起床 · 22:30 入睡 <span class="note">规律性 94%</span></span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="fas fa-face-smile"></i> 压力水平</span>
+                        <span class="stat-value">低 (23/100) <span class="unit">自评</span> 冥想 15min/天</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="fas fa-people-group"></i> 社交</span>
+                        <span class="stat-value">每周 <strong>3.5</strong> 次 <span class="unit">线下聚会</span> 团队训练 2 次</span>
+                    </div>
+                </div>
+
+                <div class="trend-foot">
+                    <span><i class="fas fa-arrow-trend-up" style="color: #10b981;"></i> 睡眠 +0.5h</span>
+                    <span><i class="fas fa-arrow-trend-up" style="color: #10b981;"></i> 运动 +1次</span>
+                    <span><i class="fas fa-arrow-trend-down" style="color: #ef4444;"></i> 屏幕时间 -0.6h</span>
+                </div>
+            </div>
+
+            <!-- 睡眠结构 -->
+            <div class="data-card">
+                <div class="card-header">
+                    <i class="fas fa-bed"></i>
+                    <h2>睡眠结构</h2>
+                    <span class="card-meta">昨夜 7h 38m</span>
+                </div>
+                <div class="bar-group">
+                    <div class="bar-item">
+                        <div class="bar-top"><span>深睡</span><span>1h 52m · 24%</span></div>
+                        <div class="bar-track"><div class="bar-fill violet" style="width: 24%"></div></div>
+                        <div class="bar-scale"><span>目标 20–25%</span></div>
+                    </div>
+                    <div class="bar-item">
+                        <div class="bar-top"><span>浅睡</span><span>3h 46m · 49%</span></div>
+                        <div class="bar-track"><div class="bar-fill" style="width: 49%"></div></div>
+                        <div class="bar-scale"><span>目标 45–55%</span></div>
+                    </div>
+                    <div class="bar-item">
+                        <div class="bar-top"><span>REM</span><span>1h 44m · 23%</span></div>
+                        <div class="bar-track"><div class="bar-fill green" style="width: 23%"></div></div>
+                        <div class="bar-scale"><span>目标 20–25%</span></div>
+                    </div>
+                    <div class="bar-item">
+                        <div class="bar-top"><span>清醒</span><span>16m · 4%</span></div>
+                        <div class="bar-track"><div class="bar-fill amber" style="width: 4%"></div></div>
+                        <div class="bar-scale"><span>目标 &lt; 5%</span></div>
+                    </div>
+                    <div class="bar-item">
+                        <div class="bar-top"><span>入睡耗时</span><span>11 分钟</span></div>
+                        <div class="bar-track"><div class="bar-fill green" style="width: 18%"></div></div>
+                        <div class="bar-scale"><span>呼吸暂停指数 AHI 1.2</span></div>
+                    </div>
+                </div>
+                <div class="chart-wrap" style="margin-top: 1.1rem;">
+                    <div class="chart-title">
+                        <span>近 7 天睡眠时长</span>
+                        <em>目标 7.5h</em>
+                    </div>
+                    <div class="bar-chart">
+                        <div class="bar-col"><span class="bar-val">7.2</span><div class="bar" style="height: 72%"></div><span class="bar-day">一</span></div>
+                        <div class="bar-col"><span class="bar-val">6.8</span><div class="bar" style="height: 62%"></div><span class="bar-day">二</span></div>
+                        <div class="bar-col"><span class="bar-val">7.6</span><div class="bar" style="height: 80%"></div><span class="bar-day">三</span></div>
+                        <div class="bar-col hot"><span class="bar-val">8.3</span><div class="bar" style="height: 100%"></div><span class="bar-day">四</span></div>
+                        <div class="bar-col"><span class="bar-val">7.0</span><div class="bar" style="height: 62%"></div><span class="bar-day">五</span></div>
+                        <div class="bar-col"><span class="bar-val">7.4</span><div class="bar" style="height: 74%"></div><span class="bar-day">六</span></div>
+                        <div class="bar-col"><span class="bar-val">7.6</span><div class="bar" style="height: 80%"></div><span class="bar-day">日</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 营养 -->
+            <div class="data-card">
+                <div class="card-header">
+                    <i class="fas fa-apple-whole"></i>
+                    <h2>营养摄入</h2>
+                    <span class="card-meta">今日 · 目标 2750 kcal</span>
+                </div>
+                <table class="mini-table">
+                    <thead>
+                    <tr>
+                        <th>营养素</th>
+                        <th>摄入</th>
+                        <th>目标</th>
+                        <th>进度</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>热量</td>
+                        <td class="num">2380 kcal</td>
+                        <td>2750</td>
+                        <td><span class="pill warn">87%</span></td>
+                    </tr>
+                    <tr>
+                        <td>蛋白质</td>
+                        <td class="num">128 g</td>
+                        <td>145</td>
+                        <td><span class="pill warn">88%</span></td>
+                    </tr>
+                    <tr>
+                        <td>碳水</td>
+                        <td class="num">284 g</td>
+                        <td>320</td>
+                        <td><span class="pill warn">89%</span></td>
+                    </tr>
+                    <tr>
+                        <td>脂肪</td>
+                        <td class="num">76 g</td>
+                        <td>80</td>
+                        <td><span class="pill ok">95%</span></td>
+                    </tr>
+                    <tr>
+                        <td>膳食纤维</td>
+                        <td class="num">31 g</td>
+                        <td>30</td>
+                        <td><span class="pill ok">103%</span></td>
+                    </tr>
+                    <tr>
+                        <td>钠</td>
+                        <td class="num">2.4 g</td>
+                        <td>≤ 2.0</td>
+                        <td><span class="pill warn">超 20%</span></td>
+                    </tr>
+                    <tr>
+                        <td>添加糖</td>
+                        <td class="num">11 g</td>
+                        <td>≤ 25</td>
+                        <td><span class="pill ok">达标</span></td>
+                    </tr>
+                    <tr>
+                        <td>Omega-3</td>
+                        <td class="num">1.6 g</td>
+                        <td>1.6</td>
+                        <td><span class="pill ok">达标</span></td>
+                    </tr>
+                    </tbody>
+                </table>
+                <div class="stats-list" style="margin-top: 1.2rem;">
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="fas fa-drumstick-bite"></i> 餐次</span>
+                        <span class="stat-value">3 正餐 + 1 加餐 <span class="unit">16:8 轻断食</span></span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="fas fa-cookie-bite"></i> 饮食类型</span>
+                        <span class="stat-value">高蛋白 · 地中海式 <span class="note">每周 1 次自由餐</span></span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="fas fa-wine-glass"></i> 酒精</span>
+                        <span class="stat-value"><strong>0.8</strong> 杯/周 <span class="unit">标准杯</span> <span class="note">低于建议上限</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 训练计划 -->
+            <div class="data-card">
+                <div class="card-header">
+                    <i class="fas fa-dumbbell"></i>
+                    <h2>训练计划</h2>
+                    <span class="card-meta">第 12 周期 · 强度期</span>
+                </div>
+                <table class="mini-table">
+                    <thead>
+                    <tr>
+                        <th>日期</th>
+                        <th>内容</th>
+                        <th>时长</th>
+                        <th>状态</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr>
+                        <td>周一</td>
+                        <td>上肢力量 · 推</td>
+                        <td class="num">75 min</td>
+                        <td><span class="pill ok">完成</span></td>
+                    </tr>
+                    <tr>
+                        <td>周二</td>
+                        <td>战术跑 8 km</td>
+                        <td class="num">38 min</td>
+                        <td><span class="pill ok">完成</span></td>
+                    </tr>
+                    <tr>
+                        <td>周三</td>
+                        <td>下肢力量 · 拉</td>
+                        <td class="num">80 min</td>
+                        <td><span class="pill ok">完成</span></td>
+                    </tr>
+                    <tr>
+                        <td>周四</td>
+                        <td>主动恢复 · 游泳 1.5 km</td>
+                        <td class="num">45 min</td>
+                        <td><span class="pill ok">完成</span></td>
+                    </tr>
+                    <tr>
+                        <td>周五</td>
+                        <td>攀岩 · 抱石</td>
+                        <td class="num">90 min</td>
+                        <td><span class="pill info">今日</span></td>
+                    </tr>
+                    <tr>
+                        <td>周六</td>
+                        <td>负重行军 12 km</td>
+                        <td class="num">110 min</td>
+                        <td><span class="pill mute">计划</span></td>
+                    </tr>
+                    <tr>
+                        <td>周日</td>
+                        <td>完全休息 · 拉伸</td>
+                        <td class="num">20 min</td>
+                        <td><span class="pill mute">计划</span></td>
+                    </tr>
+                    </tbody>
+                </table>
+                <div class="stats-list" style="margin-top: 1.2rem;">
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="fas fa-fire"></i> 周训练负荷</span>
+                        <span class="stat-value"><strong>418</strong> AU <span class="unit">负荷单位</span> <span class="note">较上周 +6%</span></span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="fas fa-battery-half"></i> 恢复状态</span>
+                        <span class="stat-value">HRV <strong>68</strong> ms <span class="unit">良好</span> 静息心率稳定</span>
+                    </div>
+                    <div class="stat-row">
+                        <span class="stat-label"><i class="fas fa-bandage"></i> 伤病监测</span>
+                        <span class="stat-value">左膝旧伤 <span class="pill ok">无症状</span> 右肩紧张度 2/5</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 能力雷达替代：技能评分 -->
+            <div class="data-card">
+                <div class="card-header">
+                    <i class="fas fa-crosshairs"></i>
+                    <h2>能力评估</h2>
+                    <span class="card-meta">1–10 分</span>
+                </div>
+                <div class="stats-list" style="gap: 0.75rem;">
+                    <div class="rating-row">
+                        <span class="rating-name">耐力</span>
+                        <span class="rating-dots">
+                            <i class="rating-dot on high"></i><i class="rating-dot on high"></i><i class="rating-dot on high"></i><i class="rating-dot on high"></i><i class="rating-dot on high"></i><i class="rating-dot on"></i><i class="rating-dot on"></i><i class="rating-dot on"></i><i class="rating-dot on"></i><i class="rating-dot"></i>
+                        </span>
+                        <span class="rating-num">9.0</span>
+                    </div>
+                    <div class="rating-row">
+                        <span class="rating-name">爆发力</span>
+                        <span class="rating-dots">
+                            <i class="rating-dot on high"></i><i class="rating-dot on high"></i><i class="rating-dot on high"></i><i class="rating-dot on high"></i><i class="rating-dot on"></i><i class="rating-dot on"></i><i class="rating-dot on"></i><i class="rating-dot on"></i><i class="rating-dot"></i><i class="rating-dot"></i>
+                        </span>
+                        <span class="rating-num">8.0</span>
+                    </div>
+                    <div class="rating-row">
+                        <span class="rating-name">敏捷</span>
+                        <span class="rating-dots">
+                            <i class="rating-dot on high"></i><i class="rating-dot on high"></i><i class="rating-dot on high"></i><i class="rating-dot on high"></i><i class="rating-dot on high"></i><i class="rating-dot on"></i><i class="rating-dot on"></i><i class="rating-dot on"></i><i class="rating-dot"></i><i class="rating-dot"></i>
+                        </span>
+                        <span class="rating-num">8.5</span>
+                    </div>
+                    <div class="rating-row">
+                        <span class="rating-name">力量</span>
+                        <span class="rating-dots">
+                            <i class="rating-dot on high"></i><i class="rating-dot on high"></i><i class="rating-dot on high"></i><i class="rating-dot on high"></i><i class="rating-dot on high"></i><i class="rating-dot on"></i><i class="rating-dot on"></i><i class="rating-dot on"></i><i class="rating-dot on"></i><i class="rating-dot"></i>
+                        </span>
+                        <span class="rating-num">9.0</span>
+                    </div>
+                    <div class="rating-row">
+                        <span class="rating-name">射击精度</span>
+                        <span class="rating-dots">
+                            <i class="rating-dot on high"></i><i class="rating-dot on high"></i><i class="rating-dot on high"></i><i class="rating-dot on high"></i><i class="rating-dot on high"></i><i class="rating-dot on high"></i><i class="rating-dot on"></i><i class="rating-dot on"></i><i class="rating-dot on"></i><i class="rating-dot"></i>
+                        </span>
+                        <span class="rating-num">9.4</span>
+                    </div>
+                    <div class="rating-row">
+                        <span class="rating-name">观察力</span>
+                        <span class="rating-dots">
+                            <i class="rating-dot on high"></i><i class="rating-dot on high"></i><i class="rating-dot on high"></i><i class="rating-dot on high"></i><i class="rating-dot on high"></i><i class="rating-dot on"></i><i class="rating-dot on"></i><i class="rating-dot on"></i><i class="rating-dot"></i><i class="rating-dot"></i>
+                        </span>
+                        <span class="rating-num">8.6</span>
+                    </div>
+                    <div class="rating-row">
+                        <span class="rating-name">团队协作</span>
+                        <span class="rating-dots">
+                            <i class="rating-dot on high"></i><i class="rating-dot on high"></i><i class="rating-dot on high"></i><i class="rating-dot on high"></i><i class="rating-dot on"></i><i class="rating-dot on"></i><i class="rating-dot on"></i><i class="rating-dot on"></i><i class="rating-dot on"></i><i class="rating-dot"></i>
+                        </span>
+                        <span class="rating-num">8.0</span>
+                    </div>
+                    <div class="rating-row">
+                        <span class="rating-name">技术拆解</span>
+                        <span class="rating-dots">
+                            <i class="rating-dot on high"></i><i class="rating-dot on high"></i><i class="rating-dot on high"></i><i class="rating-dot on high"></i><i class="rating-dot on high"></i><i class="rating-dot on high"></i><i class="rating-dot on high"></i><i class="rating-dot on"></i><i class="rating-dot on"></i><i class="rating-dot"></i>
+                        </span>
+                        <span class="rating-num">9.6</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 日常时间线 -->
+            <div class="data-card">
+                <div class="card-header">
+                    <i class="fas fa-clock-rotate-left"></i>
+                    <h2>今日时间线</h2>
+                    <span class="card-meta">已记录 11 项</span>
+                </div>
+                <div class="timeline">
+                    <div class="tl-item">
+                        <span class="tl-time">06:30</span>
+                        <span class="tl-dot done"></span>
+                        <div class="tl-body"><strong>起床 · 晨间测量</strong><span class="tl-note">体重 78.5 kg · 静息心率 51 bpm</span></div>
+                    </div>
+                    <div class="tl-item">
+                        <span class="tl-time">06:50</span>
+                        <span class="tl-dot done"></span>
+                        <div class="tl-body"><strong>晨跑 5 km</strong><span class="tl-note">配速 4'42" · 平均心率 142 bpm</span></div>
+                    </div>
+                    <div class="tl-item">
+                        <span class="tl-time">07:40</span>
+                        <span class="tl-dot done"></span>
+                        <div class="tl-body"><strong>早餐</strong><span class="tl-note">燕麦 80g · 鸡蛋 3 个 · 蓝莓 · 620 kcal</span></div>
+                    </div>
+                    <div class="tl-item">
+                        <span class="tl-time">09:00</span>
+                        <span class="tl-dot done"></span>
+                        <div class="tl-body"><strong>战术简报</strong><span class="tl-note">90 分钟 · 专注度 91%</span></div>
+                    </div>
+                    <div class="tl-item">
+                        <span class="tl-time">11:30</span>
+                        <span class="tl-dot done"></span>
+                        <div class="tl-body"><strong>力量训练 · 上肢推</strong><span class="tl-note">卧推 4×6 · 肩推 3×8 · 总容量 8.4 t</span></div>
+                    </div>
+                    <div class="tl-item">
+                        <span class="tl-time">12:50</span>
+                        <span class="tl-dot done"></span>
+                        <div class="tl-body"><strong>午餐</strong><span class="tl-note">鸡胸 200g · 糙米 150g · 西兰花 · 780 kcal</span></div>
+                    </div>
+                    <div class="tl-item">
+                        <span class="tl-time">14:00</span>
+                        <span class="tl-dot done"></span>
+                        <div class="tl-body"><strong>射击训练场</strong><span class="tl-note">25 m 精度 96 环 · 反应时 178 ms</span></div>
+                    </div>
+                    <div class="tl-item">
+                        <span class="tl-time">16:20</span>
+                        <span class="tl-dot done"></span>
+                        <div class="tl-body"><strong>阅读 · 战术史</strong><span class="tl-note">45 分钟 · 12 页笔记</span></div>
+                    </div>
+                    <div class="tl-item">
+                        <span class="tl-time">18:00</span>
+                        <span class="tl-dot"></span>
+                        <div class="tl-body"><strong>攀岩馆 · 抱石</strong><span class="tl-note">预约中 · 预计 90 分钟</span></div>
+                    </div>
+                    <div class="tl-item">
+                        <span class="tl-time">20:30</span>
+                        <span class="tl-dot"></span>
+                        <div class="tl-body"><strong>晚餐</strong><span class="tl-note">三文鱼 180g · 藜麦 · 沙拉 · 820 kcal</span></div>
+                    </div>
+                    <div class="tl-item">
+                        <span class="tl-time">22:30</span>
+                        <span class="tl-dot"></span>
+                        <div class="tl-body"><strong>入睡</strong><span class="tl-note">目标 7.5 小时 · 房间温度 19 °C</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section-divider">辅助档案</div>
+
+    <!-- 底部：三栏辅助信息 -->
+    <div class="data-grid" style="grid-template-columns: repeat(3, 1fr);">
+        <div class="data-card" style="margin-top: 0;">
+            <div class="card-header">
+                <i class="fas fa-id-card-clip"></i>
+                <h2>基础档案</h2>
+            </div>
+            <div class="stats-list" style="gap: 0.85rem;">
+                <div class="stat-row">
+                    <span class="stat-label"><i class="fas fa-signature"></i> 全名</span>
+                    <span class="stat-value">Arthur J. Miller</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label"><i class="fas fa-cake-candles"></i> 生日</span>
+                    <span class="stat-value">1993-04-17 <span class="unit">白羊座</span></span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label"><i class="fas fa-venus-mars"></i> 性别</span>
+                    <span class="stat-value">男</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label"><i class="fas fa-ruler-combined"></i> 体型</span>
+                    <span class="stat-value">中胚层型 <span class="unit">Ecto-Meso</span></span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label"><i class="fas fa-shoe-prints"></i> 鞋码</span>
+                    <span class="stat-value">EU 44 / US 10</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label"><i class="fas fa-hand-fist"></i> 惯用手</span>
+                    <span class="stat-value">右</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label"><i class="fas fa-tshirt"></i> 服装尺码</span>
+                    <span class="stat-value">L / 腰围 82 cm</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label"><i class="fas fa-head-side-mask"></i> 头盔尺寸</span>
+                    <span class="stat-value">M (58 cm)</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="data-card" style="margin-top: 0;">
+            <div class="card-header">
+                <i class="fas fa-briefcase"></i>
+                <h2>职业记录</h2>
+            </div>
+            <div class="stats-list" style="gap: 0.85rem;">
+                <div class="stat-row">
+                    <span class="stat-label"><i class="fas fa-sitemap"></i> 单位</span>
+                    <span class="stat-value">联合防御部 · 战术侦察连</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label"><i class="fas fa-user-tie"></i> 职级</span>
+                    <span class="stat-value">二级军士长 <span class="unit">E-7</span></span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label"><i class="fas fa-calendar-check"></i> 服役</span>
+                    <span class="stat-value"><strong>9</strong> 年 4 月 <span class="note">2016-07 入伍</span></span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label"><i class="fas fa-list-check"></i> 任务次数</span>
+                    <span class="stat-value"><strong>142</strong> 次 <span class="unit">其中高危 27 次</span></span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label"><i class="fas fa-clock"></i> 执勤小时</span>
+                    <span class="stat-value"><strong>18,640</strong> h <span class="note">本年 1,240 h</span></span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label"><i class="fas fa-award"></i> 表彰</span>
+                    <span class="stat-value">银鹰勋章 ×1 · 集体嘉奖 ×4</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label"><i class="fas fa-user-group"></i> 直接下属</span>
+                    <span class="stat-value">6 人 <span class="unit">小队规模</span></span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label"><i class="fas fa-book-open"></i> 认证</span>
+                    <span class="stat-value">狙击手 II · 野外医疗 · 爆破 EOD</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="data-card" style="margin-top: 0;">
+            <div class="card-header">
+                <i class="fas fa-campground"></i>
+                <h2>生活设定</h2>
+            </div>
+            <div class="stats-list" style="gap: 0.85rem;">
+                <div class="stat-row">
+                    <span class="stat-label"><i class="fas fa-house"></i> 居住</span>
+                    <span class="stat-value">北岸基地 3 号宿舍 <span class="unit">单人间 28 m²</span></span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label"><i class="fas fa-wallet"></i> 月支出</span>
+                    <span class="stat-value">2,480 信用点 <span class="note">储蓄率 46%</span></span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label"><i class="fas fa-paw"></i> 宠物</span>
+                    <span class="stat-value">一只黑猫 "Nyx" <span class="note">3 岁 · 已绝育</span></span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label"><i class="fas fa-motorcycle"></i> 载具</span>
+                    <span class="stat-value">KTM 690 越野摩托 <span class="note">通勤 + 越野</span></span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label"><i class="fas fa-language"></i> 语言</span>
+                    <span class="stat-value">英语 (母语) · 德语 (C1) · 俄语 (B1)</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label"><i class="fas fa-graduation-cap"></i> 学历</span>
+                    <span class="stat-value">军事学院 · 侦察专业</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label"><i class="fas fa-comments"></i> 通讯</span>
+                    <span class="stat-value">每周与家人通话 <strong>2</strong> 次</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label"><i class="fas fa-icons"></i> 日常习惯</span>
+                    <span class="stat-value">晨跑 · 记日记 · 睡前列清单</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section-divider">数据来源与更新</div>
+
+    <div class="data-card" style="margin-top: 0;">
+        <div class="card-header">
+            <i class="fas fa-database"></i>
+            <h2>数据来源</h2>
+            <span class="card-meta">最后同步 08:42</span>
+        </div>
+        <table class="mini-table">
+            <thead>
+            <tr>
+                <th>数据源</th>
+                <th>类型</th>
+                <th>覆盖指标</th>
+                <th>同步频率</th>
+                <th>状态</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <td>腕带 Vital-3</td>
+                <td>可穿戴</td>
+                <td>心率 · 体温 · 血氧 · 步数 · 睡眠</td>
+                <td class="num">60 秒</td>
+                <td><span class="pill ok">在线</span></td>
+            </tr>
+            <tr>
+                <td>InBody 970</td>
+                <td>体成分仪</td>
+                <td>肌肉量 · 体脂率 · 水分 · 内脏脂肪</td>
+                <td class="num">每月 1 次</td>
+                <td><span class="pill ok">已同步</span></td>
+            </tr>
+            <tr>
+                <td>饮食记录 App</td>
+                <td>手动录入</td>
+                <td>热量 · 三大营养素 · 钠 · 饮水</td>
+                <td class="num">每餐</td>
+                <td><span class="pill warn">连续 6 天</span></td>
+            </tr>
+            <tr>
+                <td>训练日志</td>
+                <td>手动录入</td>
+                <td>组数 · 容量 · 负荷 · 主观疲劳</td>
+                <td class="num">每次训练</td>
+                <td><span class="pill ok">完整</span></td>
+            </tr>
+            <tr>
+                <td>医疗档案系统</td>
+                <td>机构接口</td>
+                <td>体检 · 疫苗 · 用药 · 影像</td>
+                <td class="num">每季</td>
+                <td><span class="pill info">高权限</span></td>
+            </tr>
+            <tr>
+                <td>睡眠实验室</td>
+                <td>机构接口</td>
+                <td>睡眠分期 · AHI · SpO₂</td>
+                <td class="num">每年 1 次</td>
+                <td><span class="pill mute">最近 2025-09</span></td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>

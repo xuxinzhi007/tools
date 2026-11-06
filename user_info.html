@@ -1,0 +1,1823 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>角色档案 · 数据采集模板</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+    --bg-1: #f6f8fc;
+    --bg-2: #eef2f7;
+    --ink: #0f172a;
+    --ink-2: #334155;
+    --ink-3: #64748b;
+    --ink-4: #94a3b8;
+    --accent: #3b82f6;
+    --accent-soft: #eef4ff;
+    --line: #e9eef3;
+    --dash: #e2e8f0;
+    --ok: #10b981;
+    --warn: #f59e0b;
+    --danger: #ef4444;
+}
+
+body {
+    background: linear-gradient(145deg, var(--bg-1) 0%, var(--bg-2) 100%);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    padding: 1.4rem 1.5rem 3rem;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: var(--ink);
+    gap: 1.1rem;
+}
+
+/* ============ 工具栏 ============ */
+.toolbar {
+    position: sticky;
+    top: 0.8rem;
+    z-index: 100;
+    width: 100%;
+    max-width: 1300px;
+    background: rgba(255,255,255,0.82);
+    backdrop-filter: blur(14px);
+    border-radius: 1.4rem;
+    border: 1px solid #ffffff;
+    box-shadow: 0 12px 28px -18px rgba(15,23,42,0.45);
+    padding: 0.7rem 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem 0.8rem;
+}
+
+.toolbar .brand {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--ink);
+    margin-right: 0.2rem;
+    white-space: nowrap;
+}
+
+.toolbar .brand i {
+    color: var(--accent);
+    font-size: 1.05rem;
+}
+
+.toolbar .spacer { flex: 1; }
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border: 1px solid var(--dash);
+    background: #fff;
+    color: var(--ink-2);
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 0.42rem 0.85rem;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all 0.14s ease;
+    white-space: nowrap;
+}
+
+.btn:hover { border-color: #bfdbfe; background: #f8fbff; color: #1d4ed8; }
+.btn i { font-size: 0.78rem; }
+
+.btn.primary {
+    background: linear-gradient(135deg, #3b82f6, #6366f1);
+    border-color: transparent;
+    color: #fff;
+    box-shadow: 0 6px 14px -8px rgba(59,130,246,0.9);
+}
+.btn.primary:hover { color: #fff; filter: brightness(1.05); }
+
+.btn.active {
+    background: #fff7ed;
+    border-color: #fdba74;
+    color: #c2410c;
+}
+
+.btn.ghost { background: transparent; }
+
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* 完成度 */
+.completion {
+    display: none;
+    align-items: center;
+    gap: 0.55rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--ink-3);
+    min-width: 190px;
+}
+
+.completion.show { display: flex; }
+
+.completion .cbar {
+    flex: 1;
+    height: 7px;
+    background: var(--dash);
+    border-radius: 999px;
+    overflow: hidden;
+    min-width: 70px;
+}
+
+.completion .cfill {
+    height: 100%;
+    width: 0%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, #34d399, #10b981);
+    transition: width 0.3s ease;
+}
+
+.completion .cnum { font-variant-numeric: tabular-nums; color: var(--ink); }
+
+/* ============ 档案主体 ============ */
+.character-sheet {
+    max-width: 1300px;
+    width: 100%;
+    background: rgba(255,255,255,0.75);
+    backdrop-filter: blur(8px);
+    border-radius: 2.5rem;
+    box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.6) inset;
+    padding: 2rem 2rem 2.5rem;
+}
+
+.character-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1.6rem;
+    margin-bottom: 2.2rem;
+    padding-bottom: 1.8rem;
+    border-bottom: 2px dashed #cbd5e1;
+}
+
+.avatar-placeholder {
+    width: 90px;
+    height: 90px;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    border-radius: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.8rem;
+    font-weight: 700;
+    color: #fff;
+    box-shadow: 0 12px 18px -8px rgba(59,130,246,0.5);
+    flex-shrink: 0;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.title-section { flex: 1; min-width: 260px; }
+
+.title-section h1 {
+    font-size: 2.35rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    line-height: 1.2;
+    margin-bottom: 0.35rem;
+}
+
+.subhead {
+    font-size: 0.95rem;
+    color: var(--ink-3);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.4rem;
+    align-items: center;
+}
+
+.subhead i { margin-right: 0.35rem; color: var(--accent); width: 1.05rem; }
+
+.badge-group { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.6rem; }
+
+.badge {
+    background: #e2e8f0;
+    color: #1e293b;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.24rem 0.85rem;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border: 1px solid #fff;
+}
+
+.badge i { font-size: 0.72rem; color: var(--accent); }
+
+.header-metrics {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(72px, 1fr));
+    gap: 0.6rem;
+    min-width: 300px;
+}
+
+.metric-chip {
+    background: #ffffffcc;
+    border: 1px solid #fff;
+    border-radius: 1.1rem;
+    padding: 0.6rem 0.7rem;
+    text-align: center;
+    box-shadow: 0 6px 14px -10px rgba(15,23,42,0.35);
+}
+
+.metric-chip .metric-value {
+    font-size: 1.12rem;
+    font-weight: 700;
+    color: #0b1e33;
+    line-height: 1.1;
+}
+
+.metric-chip .metric-label {
+    font-size: 0.66rem;
+    color: var(--ink-3);
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    margin-top: 0.15rem;
+}
+
+.data-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    align-items: start;
+}
+
+.col-stack { display: flex; flex-direction: column; gap: 1.6rem; }
+
+.data-card {
+    background: #ffffffd9;
+    backdrop-filter: blur(4px);
+    border-radius: 1.8rem;
+    padding: 1.6rem 1.7rem 1.7rem;
+    box-shadow: 0 10px 20px -10px rgba(0,0,0,0.08), 0 0 0 1px rgba(255,255,255,0.8) inset;
+    border: 1px solid #fff;
+}
+
+.card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    margin-bottom: 1.3rem;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 0.85rem;
+}
+
+.card-header i {
+    font-size: 1.4rem;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border-radius: 1rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.card-header h2 {
+    font-size: 1.35rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: #0b1e33;
+    flex: 1;
+}
+
+.card-meta {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--ink-3);
+    background: #f1f5f9;
+    border-radius: 999px;
+    padding: 0.2rem 0.7rem;
+    white-space: nowrap;
+}
+
+/* ============ 字段行 ============ */
+.stats-list { display: flex; flex-direction: column; gap: 0.95rem; }
+
+.stat-row {
+    display: flex;
+    align-items: flex-start;
+    font-size: 0.95rem;
+    line-height: 1.45;
+    border-bottom: 1px dashed var(--dash);
+    padding-bottom: 0.75rem;
+    gap: 0.5rem;
+}
+
+.stat-row:last-child { border-bottom: none; padding-bottom: 0; }
+
+.stat-label {
+    font-weight: 600;
+    color: var(--ink-2);
+    width: 132px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding-top: 0.15rem;
+}
+
+.stat-label i { color: var(--ink-3); font-size: 0.88rem; width: 1.15rem; text-align: center; }
+
+.stat-value {
+    font-weight: 400;
+    color: var(--ink);
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 0.7rem;
+    min-width: 0;
+}
+
+.stat-value strong { font-weight: 700; color: #0b1e33; }
+
+.unit {
+    font-size: 0.76rem;
+    color: var(--ink-3);
+    font-weight: 500;
+    background: #f1f5f9;
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+.note {
+    font-size: 0.76rem;
+    color: var(--ink-3);
+    font-style: italic;
+}
+
+/* ============ 编辑态控件 ============ */
+.field {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 0.55rem;
+    align-items: center;
+}
+
+.edit-mode .view-only { display: none !important; }
+.field .edit-only { display: none; }
+.edit-mode .field .edit-only { display: inline-flex; }
+
+.inp {
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--ink);
+    background: #fff;
+    border: 1px solid #dbe3ec;
+    border-radius: 0.6rem;
+    padding: 0.3rem 0.55rem;
+    min-width: 0;
+    width: 100%;
+    transition: border-color 0.14s, box-shadow 0.14s;
+}
+
+.inp:focus {
+    outline: none;
+    border-color: #93c5fd;
+    box-shadow: 0 0 0 3px rgba(147,197,253,0.28);
+}
+
+.inp.nano { width: 5.2rem; flex: 0 0 auto; }
+.inp.tiny { width: 7rem; flex: 0 0 auto; }
+.inp.small { width: 9.5rem; flex: 0 0 auto; }
+.inp.auto { width: auto; flex: 1 1 8rem; }
+
+.inp[type="number"] { -moz-appearance: textfield; }
+.inp[type="number"]::-webkit-outer-spin-button,
+.inp[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+textarea.inp { resize: vertical; min-height: 3.4rem; line-height: 1.5; }
+
+select.inp { cursor: pointer; }
+
+.mini-lbl {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--ink-4);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    flex: 0 0 auto;
+}
+
+/* 标签编辑 */
+.tag-editor {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    align-items: center;
+    width: 100%;
+}
+
+.hobby-tag {
+    background: #eef2ff;
+    color: #4338ca;
+    font-size: 0.78rem;
+    font-weight: 500;
+    padding: 0.2rem 0.55rem 0.2rem 0.8rem;
+    border-radius: 999px;
+    border: 1px solid #c7d2fe;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.hobby-tag .x {
+    cursor: pointer;
+    color: #818cf8;
+    font-size: 0.72rem;
+    line-height: 1;
+    padding: 0.1rem;
+    border-radius: 50%;
+}
+
+.hobby-tag .x:hover { color: var(--danger); background: #fee2e2; }
+
+.tag-add {
+    font-family: inherit;
+    font-size: 0.78rem;
+    border: 1px dashed #c7d2fe;
+    background: #f8faff;
+    color: #6366f1;
+    border-radius: 999px;
+    padding: 0.18rem 0.7rem;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.tag-add:hover { background: #eef2ff; }
+
+/* ============ 生命体征高亮 ============ */
+.vital-highlight {
+    background: #f0f9ff;
+    border-radius: 1.6rem;
+    padding: 0.8rem 1.1rem;
+    margin-top: 1rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.7rem 1.6rem;
+    border: 1px solid #b8dfff;
+}
+
+.vital-item { display: flex; align-items: center; gap: 0.5rem; }
+.vital-item i { font-size: 1.05rem; color: #0284c7; width: 1.5rem; }
+.vital-item span { font-weight: 600; color: #0369a1; font-size: 0.92rem; }
+.vital-item .small-unit { font-size: 0.76rem; color: var(--accent); font-weight: 400; }
+
+/* ============ 进度条 ============ */
+.bar-group { display: flex; flex-direction: column; gap: 0.85rem; }
+
+.bar-item .bar-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.82rem;
+    margin-bottom: 0.3rem;
+}
+
+.bar-item .bar-top > span:first-child { font-weight: 600; color: var(--ink-2); }
+
+.bar-track { height: 8px; background: var(--line); border-radius: 999px; overflow: hidden; }
+
+.bar-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #60a5fa, #3b82f6); transition: width 0.35s ease; }
+.bar-fill.green { background: linear-gradient(90deg, #6ee7b7, #10b981); }
+.bar-fill.amber { background: linear-gradient(90deg, #fcd34d, #f59e0b); }
+.bar-fill.violet { background: linear-gradient(90deg, #c4b5fd, #8b5cf6); }
+.bar-fill.rose { background: linear-gradient(90deg, #fda4af, #f43f5e); }
+
+.bar-scale {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+    font-size: 0.68rem;
+    color: var(--ink-4);
+    margin-top: 0.28rem;
+}
+
+/* ============ 图表 ============ */
+.chart-wrap {
+    background: #f8fafc;
+    border: 1px solid var(--line);
+    border-radius: 1.2rem;
+    padding: 0.9rem 1rem 0.7rem;
+    margin-top: 1rem;
+}
+
+.chart-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #475569;
+    margin-bottom: 0.7rem;
+}
+
+.chart-title em { font-style: normal; font-size: 0.68rem; font-weight: 500; color: var(--ink-4); }
+
+.bar-chart { display: flex; align-items: flex-end; gap: 0.4rem; height: 96px; }
+
+.bar-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    height: 100%;
+    gap: 0.3rem;
+}
+
+.bar-col .bar {
+    width: 100%;
+    max-width: 26px;
+    border-radius: 6px 6px 3px 3px;
+    background: linear-gradient(180deg, #93c5fd, #3b82f6);
+    min-height: 3px;
+    transition: height 0.35s ease;
+}
+
+.bar-col.hot .bar { background: linear-gradient(180deg, #fdba74, #f97316); }
+.bar-col .bar-val { font-size: 0.6rem; font-weight: 700; color: #475569; }
+.bar-col .bar-day { font-size: 0.64rem; color: var(--ink-4); font-weight: 600; }
+
+/* ============ 表格 ============ */
+.table-scroll { width: 100%; overflow-x: auto; }
+
+.mini-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+
+.mini-table th {
+    text-align: left;
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    font-weight: 700;
+    padding: 0 0.45rem 0.5rem;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+}
+
+.mini-table td {
+    padding: 0.5rem 0.45rem;
+    border-bottom: 1px dashed #eef2f7;
+    color: var(--ink);
+    vertical-align: middle;
+}
+
+.mini-table tbody tr:last-child td { border-bottom: none; }
+.mini-table td:first-child { font-weight: 600; color: var(--ink-2); white-space: nowrap; }
+.mini-table td.num { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+.mini-table .row-del {
+    background: none;
+    border: none;
+    color: #cbd5e1;
+    cursor: pointer;
+    font-size: 0.8rem;
+    padding: 0.1rem 0.3rem;
+}
+
+.mini-table .row-del:hover { color: var(--danger); }
+.mini-table .edit-only { display: none; }
+.edit-mode .mini-table .edit-only { display: table-cell; }
+
+.row-add {
+    margin-top: 0.7rem;
+    width: 100%;
+    border: 1px dashed #dbe3ec;
+    background: #fbfdff;
+    color: var(--accent);
+    font-family: inherit;
+    font-size: 0.78rem;
+    font-weight: 600;
+    border-radius: 0.7rem;
+    padding: 0.45rem;
+    cursor: pointer;
+}
+
+.row-add:hover { background: var(--accent-soft); border-color: #bfdbfe; }
+.edit-mode .row-add { display: block; }
+.row-add { display: none; }
+
+.pill {
+    display: inline-block;
+    font-size: 0.66rem;
+    font-weight: 700;
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
+.pill.ok { background: #dcfce7; color: #15803d; }
+.pill.warn { background: #fef3c7; color: #b45309; }
+.pill.info { background: #e0e7ff; color: #4338ca; }
+.pill.mute { background: #f1f5f9; color: #475569; }
+.pill.danger { background: #fee2e2; color: #b91c1c; }
+
+/* ============ 评分点阵 ============ */
+.rating-row { display: flex; align-items: center; gap: 0.65rem; font-size: 0.84rem; }
+
+.rating-row .rating-name { width: 84px; flex-shrink: 0; font-weight: 600; color: var(--ink-2); }
+
+.rating-dots { display: flex; gap: 0.16rem; flex: 1; }
+
+.rating-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--dash); }
+.rating-dot.on { background: var(--accent); }
+.rating-dot.on.high { background: var(--ok); }
+
+.rating-row .rating-num {
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: var(--ink-3);
+    width: 2.3rem;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+/* 滑杆（编辑态评分） */
+.score-slider { width: 100%; accent-color: var(--accent); cursor: pointer; }
+
+/* ============ 时间线 ============ */
+.timeline { display: flex; flex-direction: column; }
+
+.tl-item { display: flex; gap: 0.85rem; font-size: 0.84rem; position: relative; padding-bottom: 0.95rem; }
+.tl-item:last-child { padding-bottom: 0; }
+
+.tl-time {
+    width: 50px;
+    flex-shrink: 0;
+    font-weight: 700;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.8rem;
+    padding-top: 0.1rem;
+}
+
+.tl-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid #93c5fd;
+    flex-shrink: 0;
+    margin-top: 0.28rem;
+    position: relative;
+    z-index: 1;
+}
+
+.tl-item:not(:last-child) .tl-dot::after {
+    content: '';
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: calc(100% + 0.8rem);
+    background: var(--dash);
+}
+
+.tl-dot.done { background: var(--accent); border-color: var(--accent); }
+
+.tl-body { flex: 1; color: var(--ink-2); line-height: 1.4; min-width: 0; }
+.tl-body strong { color: #0b1e33; font-weight: 600; }
+.tl-body .tl-note { display: block; font-size: 0.74rem; color: var(--ink-4); margin-top: 0.1rem; }
+
+/* ============ 分区标题 / 页脚 ============ */
+.section-divider {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin: 2.2rem 0 1.4rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-4);
+}
+
+.section-divider::before,
+.section-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #cbd5e1, transparent);
+}
+
+.trend-foot {
+    margin-top: 1.2rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.9rem;
+    font-size: 0.78rem;
+    justify-content: flex-end;
+    color: #4b5563;
+    border-top: 1px solid var(--dash);
+    padding-top: 0.9rem;
+}
+
+.triple-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.6rem; align-items: start; }
+
+/* ============ 提示条 ============ */
+.toast {
+    position: fixed;
+    bottom: 1.6rem;
+    left: 50%;
+    transform: translate(-50%, 1.6rem);
+    background: rgba(15,23,42,0.92);
+    color: #fff;
+    font-size: 0.82rem;
+    font-weight: 500;
+    padding: 0.6rem 1.1rem;
+    border-radius: 999px;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.22s ease;
+    z-index: 300;
+    box-shadow: 0 12px 28px -12px rgba(0,0,0,0.5);
+}
+
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* ============ 打印 ============ */
+@media print {
+    body { background: #fff; padding: 0; }
+    .toolbar, .row-add, .row-del, .tag-add, .tag-add-btn { display: none !important; }
+    .character-sheet { box-shadow: none; backdrop-filter: none; background: #fff; border-radius: 0; padding: 0; }
+    .data-card { box-shadow: none; border: 1px solid var(--dash); break-inside: avoid; }
+    .data-grid, .triple-grid { grid-template-columns: 1fr 1fr; }
+}
+
+/* ============ 响应式 ============ */
+@media (max-width: 1080px) {
+    .header-metrics { grid-template-columns: repeat(4, minmax(64px, 1fr)); min-width: 100%; }
+    .triple-grid { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 860px) {
+    .data-grid, .triple-grid { grid-template-columns: 1fr; gap: 1.4rem; }
+    .character-sheet { padding: 1.5rem; border-radius: 2rem; }
+    .title-section h1 { font-size: 1.95rem; }
+    .stat-label { width: 112px; }
+    .toolbar { position: static; }
+    .completion { min-width: 100%; order: 10; }
+}
+
+@media (max-width: 520px) {
+    body { padding: 0.9rem 0.7rem 2rem; }
+    .character-sheet { padding: 1.2rem 1rem; border-radius: 1.6rem; }
+    .stat-row { flex-direction: column; gap: 0.3rem; }
+    .stat-label { width: 100%; }
+    .vital-highlight { flex-direction: column; gap: 0.5rem; }
+    .avatar-placeholder { width: 70px; height: 70px; font-size: 2.2rem; }
+    .header-metrics { grid-template-columns: repeat(2, 1fr); }
+    .mini-table { font-size: 0.76rem; }
+    .mini-table th, .mini-table td { padding-left: 0.2rem; padding-right: 0.2rem; }
+    .btn { font-size: 0.76rem; padding: 0.36rem 0.7rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- ================= 工具栏 ================= -->
+<div class="toolbar">
+    <div class="brand"><i class="fas fa-id-badge"></i> 角色档案</div>
+    <button class="btn primary" id="btnEdit"><i class="fas fa-pen-to-square"></i> <span>填写模式</span></button>
+    <button class="btn" id="btnSave"><i class="fas fa-floppy-disk"></i> 保存</button>
+    <button class="btn" id="btnExport"><i class="fas fa-file-export"></i> 导出 JSON</button>
+    <button class="btn" id="btnImport"><i class="fas fa-file-import"></i> 导入</button>
+    <button class="btn ghost" id="btnPrint"><i class="fas fa-print"></i> 打印</button>
+    <button class="btn ghost" id="btnReset"><i class="fas fa-rotate-left"></i> 重置</button>
+    <div class="spacer"></div>
+    <div class="completion" id="completion">
+        <span>填写完成度</span>
+        <div class="cbar"><div class="cfill" id="cfill"></div></div>
+        <span class="cnum" id="cnum">0%</span>
+    </div>
+</div>
+
+<!-- ================= 档案 ================= -->
+<div class="character-sheet" id="sheet">
+    <div class="character-header">
+        <div class="avatar-placeholder" id="avatar">A</div>
+        <div class="title-section">
+            <h1 id="charName">亚瑟 · 米勒</h1>
+            <div class="subhead" id="subhead"></div>
+            <div class="badge-group" id="badgeGroup"></div>
+        </div>
+        <div class="header-metrics" id="headerMetrics"></div>
+    </div>
+
+    <div class="data-grid">
+        <div class="col-stack" id="colLeft"></div>
+        <div class="col-stack" id="colRight"></div>
+    </div>
+
+    <div class="section-divider">辅助档案</div>
+    <div class="triple-grid" id="tripleGrid"></div>
+
+    <div class="section-divider">数据来源与更新</div>
+    <div class="col-stack" id="sourceStack"></div>
+</div>
+
+<input type="file" id="fileInput" accept="application/json" style="display:none">
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================================
+   数据模型（schema）
+   field 类型：
+     text   单行文本      num   数字（units: 单位标签）
+     combo  多个子字段    tags  标签数组
+     bar    进度条        rate  评分（1-10 点阵 / 滑杆）
+     table  明细表        chart 周柱状图
+     timeline 时间线      vitals 生命体征条
+     note   纯文本备注
+   d = 默认值
+   ========================================================================= */
+
+const SCHEMA = {
+    header: {
+        avatar: 'A',
+        name: '亚瑟 · 米勒',
+        subhead: [
+            { icon: 'fa-id-badge', label: 'ID', key: 'id', d: 'CH-7742-AR' },
+            { icon: 'fa-calendar-alt', label: '年龄 / 生日', key: 'age', d: '32 岁 · 1993-04-17' },
+            { icon: 'fa-flag', label: '单位', key: 'unit', d: '联合防御部 · 战术侦察' },
+            { icon: 'fa-location-dot', label: '驻防', key: 'base', d: '第七区 · 北岸基地' }
+        ],
+        badges: [
+            { icon: 'fa-dna', key: 'badge1', d: '基因优化 (B+)' },
+            { icon: 'fa-shield-alt', key: 'badge2', d: '现役' },
+            { icon: 'fa-star', key: 'badge3', d: '体能评级 S' },
+            { icon: 'fa-medal', key: 'badge4', d: '服役 9 年 4 月' },
+            { icon: 'fa-certificate', key: 'badge5', d: '权限等级 III' }
+        ],
+        metrics: [
+            { key: 'm1', value: 'S', label: '体能' },
+            { key: 'm2', value: '52', label: '静息心率' },
+            { key: 'm3', value: '88%', label: '睡眠质量' },
+            { key: 'm4', value: 'A+', label: '健康总分' }
+        ]
+    },
+
+    /* ---------------- 左栏 ---------------- */
+    left: [
+        {
+            id: 'body',
+            icon: 'fa-heartbeat',
+            title: '身体数据',
+            meta: '测量于 07:10',
+            rows: [
+                { icon: 'fa-ruler-vertical', label: '身高', type: 'num', key: 'height', d: 183, unit: 'cm', extra: '晨间测量' },
+                { icon: 'fa-weight-scale', label: '体重', type: 'num', key: 'weight', d: 78.5, unit: 'kg', extra: '体脂率 12%' },
+                { icon: 'fa-droplet', label: '血型', type: 'combo', key: 'blood', d: ['O+', 'Rh阳性', '稀有抗原阴性'] },
+                { icon: 'fa-eye', label: '视力', type: 'combo', key: 'vision', d: ['左眼 1.5', '右眼 1.5', '色觉正常'], labels: ['左眼', '右眼', '色觉'] },
+                { icon: 'fa-lungs', label: '肺活量', type: 'num', key: 'fvc', d: 5200, unit: 'ml', extra: '高于均值 25%' },
+                { icon: 'fa-heart', label: '静息心率', type: 'num', key: 'rhr', d: 52, unit: 'bpm', extra: '运动员体质' },
+                { icon: 'fa-dumbbell', label: '握力', type: 'combo', key: 'grip', d: ['左 58 kg', '右 62 kg'], labels: ['左', '右'] },
+                { icon: 'fa-bone', label: '骨骼肌量', type: 'num', key: 'muscle', d: 41.2, unit: 'kg', extra: '占比 52.5%' },
+                { icon: 'fa-dna', label: '基因标记', type: 'text', key: 'gene', d: 'ACTN3 (RR型) · ACE (II型)', extra: '爆发力优势' },
+                { icon: 'fa-allergies', label: '过敏源', type: 'text', key: 'allergy', d: '青霉素、花粉 (轻微)', extra: '已脱敏治疗' }
+            ],
+            vitals: [
+                { icon: 'fa-heartbeat', key: 'v1', value: '72 bpm', label: '当前心率' },
+                { icon: 'fa-temperature-high', key: 'v2', value: '36.6 °C', label: '体温' },
+                { icon: 'fa-wind', key: 'v3', value: '16 次/分', label: '呼吸' },
+                { icon: 'fa-tint', key: 'v4', value: '118/76', label: '血压 mmHg' }
+            ]
+        },
+        {
+            id: 'composition',
+            icon: 'fa-chart-simple',
+            title: '身体组成',
+            meta: 'InBody 970',
+            bars: [
+                { label: '肌肉量', key: 'b_muscle', value: '41.2 kg', pct: 52.5, color: 'green', scale: ['偏低 40%', '标准 45%', '优秀 50%'] },
+                { label: '体脂率', key: 'b_fat', value: '12.0%', pct: 30, color: 'amber', scale: ['必需 5%', '标准 15%', '偏高 25%'] },
+                { label: '去脂体重', key: 'b_ffm', value: '69.1 kg', pct: 88, color: '', scale: ['基础代谢 1842 kcal'] },
+                { label: '内脏脂肪等级', key: 'b_vf', value: '4 / 20', pct: 20, color: 'green', scale: ['安全 ≤ 9'] },
+                { label: '身体水分', key: 'b_water', value: '45.6 L / 58.1%', pct: 58.1, color: '', scale: ['细胞内 28.9 L', '细胞外 16.7 L'] },
+                { label: '骨密度 T 值', key: 'b_bmd', value: '+1.2', pct: 74, color: 'violet', scale: ['骨质疏松 < -2.5', '正常 ≥ -1.0'] }
+            ]
+        },
+        {
+            id: 'perf',
+            icon: 'fa-person-running',
+            title: '运动表现',
+            meta: '季度测试 · 03/14',
+            table: {
+                key: 'perf',
+                cols: [
+                    { title: '项目', type: 'text', width: 'auto' },
+                    { title: '成绩', type: 'text', width: '6rem' },
+                    { title: '标准', type: 'text', width: '5.5rem' },
+                    { title: '评级', type: 'pill', width: '5rem' }
+                ],
+                rows: [
+                    ['5 km 跑', '18:42', '21:30', '优秀'],
+                    ['1.5 km 冲刺', '4:51', '5:40', '优秀'],
+                    ['引体向上', '24 次', '12 次', '优秀'],
+                    ['卧推 1RM', '105 kg', '80 kg', '优秀'],
+                    ['深蹲 1RM', '150 kg', '110 kg', '优秀'],
+                    ['垂直弹跳', '68 cm', '55 cm', '优秀'],
+                    ['反应时', '182 ms', '230 ms', '优秀'],
+                    ['最大摄氧量', '58.4 ml/kg', '45 ml/kg', '顶尖 5%'],
+                    ['单杠悬垂', '1:48', '1:00', '优秀'],
+                    ['25 m 屏息', '47 秒', '30 秒', '顶尖 5%']
+                ]
+            }
+        },
+        {
+            id: 'medical',
+            icon: 'fa-notes-medical',
+            title: '医疗与健康',
+            meta: '上次体检 02/28',
+            rows: [
+                { icon: 'fa-notes-medical', label: '体检结论', type: 'text', key: 'med_result', d: '合格 · A+', extra: '下次复查 08/28' },
+                { icon: 'fa-scissors', label: '手术史', type: 'text', key: 'med_surgery', d: '左膝半月板修复 (2021)', extra: '已完全康复' },
+                { icon: 'fa-capsules', label: '长期用药', type: 'text', key: 'med_meds', d: '维生素 D3 2000 IU / 每日', extra: '冬季加补' },
+                { icon: 'fa-syringe', label: '疫苗状态', type: 'text', key: 'med_vaccine', d: '全项有效 · 破伤风 2024-11 · 流感 2025-10' },
+                { icon: 'fa-tooth', label: '口腔', type: 'text', key: 'med_dental', d: '0 龋齿 · 牙周健康 · 1 次/6 月' },
+                { icon: 'fa-brain', label: '心理评估', type: 'combo', key: 'med_psy', d: ['PHQ-9 2', 'GAD-7 3'], labels: ['PHQ-9', 'GAD-7'], extra: '无临床意义' },
+                { icon: 'fa-comment-medical', label: '自述备注', type: 'textarea', key: 'med_note', d: '' }
+            ]
+        }
+    ],
+
+    /* ---------------- 右栏 ---------------- */
+    right: [
+        {
+            id: 'life',
+            icon: 'fa-chart-line',
+            title: '生活数据',
+            meta: '近 30 天均值',
+            rows: [
+                { icon: 'fa-moon', label: '睡眠', type: 'combo', key: 'l_sleep', d: ['7h 25m 平均', '深睡 1h50m', '质量 88%'] },
+                { icon: 'fa-utensils', label: '饮食', type: 'combo', key: 'l_diet', d: ['2750 kcal/天', '蛋白质 145g'] },
+                { icon: 'fa-person-walking', label: '日常步数', type: 'combo', key: 'l_steps', d: ['12,400 步/天', '8.7 km'] },
+                { icon: 'fa-dumbbell', label: '运动频率', type: 'combo', key: 'l_train', d: ['5 次/周', '力量+有氧', '6.5h/周'] },
+                { icon: 'fa-book', label: '阅读', type: 'combo', key: 'l_read', d: ['2.5 小时/天', '本年 24 本'] },
+                { icon: 'fa-mobile-screen', label: '屏幕时间', type: 'combo', key: 'l_screen', d: ['3.2 小时/天', '较上周 ↓12%'] },
+                { icon: 'fa-mug-hot', label: '咖啡因', type: 'combo', key: 'l_caffeine', d: ['2 杯/天', '美式无糖'] },
+                { icon: 'fa-water', label: '饮水', type: 'combo', key: 'l_water', d: ['2.8 L/天', '达标率 96%'] },
+                { icon: 'fa-palette', label: '爱好', type: 'tags', key: 'l_hobby', d: ['攀岩', '战术射击', '模型制作', '观星'] },
+                { icon: 'fa-clock', label: '日常节奏', type: 'text', key: 'l_rhythm', d: '06:30 起床 · 22:30 入睡', extra: '规律性 94%' },
+                { icon: 'fa-face-smile', label: '压力水平', type: 'combo', key: 'l_stress', d: ['低 (23/100)', '冥想 15min/天'] },
+                { icon: 'fa-people-group', label: '社交', type: 'combo', key: 'l_social', d: ['3.5 次/周', '团队训练 2 次'] }
+            ],
+            trend: [
+                { dir: 'up', text: '睡眠 +0.5h' },
+                { dir: 'up', text: '运动 +1次' },
+                { dir: 'down', text: '屏幕时间 -0.6h' }
+            ]
+        },
+        {
+            id: 'sleep',
+            icon: 'fa-bed',
+            title: '睡眠结构',
+            meta: '昨夜 7h 38m',
+            bars: [
+                { label: '深睡', key: 's_deep', value: '1h 52m · 24%', pct: 24, color: 'violet', scale: ['目标 20–25%'] },
+                { label: '浅睡', key: 's_light', value: '3h 46m · 49%', pct: 49, color: '', scale: ['目标 45–55%'] },
+                { label: 'REM', key: 's_rem', value: '1h 44m · 23%', pct: 23, color: 'green', scale: ['目标 20–25%'] },
+                { label: '清醒', key: 's_awake', value: '16m · 4%', pct: 4, color: 'amber', scale: ['目标 < 5%'] },
+                { label: '入睡耗时', key: 's_latency', value: '11 分钟', pct: 18, color: 'green', scale: ['AHI 1.2'] }
+            ],
+            chart: {
+                title: '近 7 天睡眠时长',
+                unit: 'h',
+                max: 9,
+                goal: 7.5,
+                key: 'sleepWeek',
+                days: ['一', '二', '三', '四', '五', '六', '日'],
+                values: [7.2, 6.8, 7.6, 8.3, 7.0, 7.4, 7.6]
+            }
+        },
+        {
+            id: 'nutrition',
+            icon: 'fa-apple-whole',
+            title: '营养摄入',
+            meta: '今日 · 目标 2750 kcal',
+            table: {
+                key: 'nutrition',
+                cols: [
+                    { title: '营养素', type: 'text', width: 'auto' },
+                    { title: '摄入', type: 'text', width: '6.5rem' },
+                    { title: '目标', type: 'text', width: '5rem' },
+                    { title: '进度', type: 'text', width: '6rem' }
+                ],
+                rows: [
+                    ['热量', '2380 kcal', '2750', '87%'],
+                    ['蛋白质', '128 g', '145', '88%'],
+                    ['碳水', '284 g', '320', '89%'],
+                    ['脂肪', '76 g', '80', '95%'],
+                    ['膳食纤维', '31 g', '30', '103%'],
+                    ['钠', '2.4 g', '≤ 2.0', '超 20%'],
+                    ['添加糖', '11 g', '≤ 25', '达标'],
+                    ['Omega-3', '1.6 g', '1.6', '达标']
+                ]
+            },
+            rows: [
+                { icon: 'fa-drumstick-bite', label: '餐次', type: 'text', key: 'n_meal', d: '3 正餐 + 1 加餐 · 16:8 轻断食' },
+                { icon: 'fa-cookie-bite', label: '饮食类型', type: 'text', key: 'n_type', d: '高蛋白 · 地中海式', extra: '每周 1 次自由餐' },
+                { icon: 'fa-wine-glass', label: '酒精', type: 'text', key: 'n_alcohol', d: '0.8 标准杯/周', extra: '低于建议上限' },
+                { icon: 'fa-notes-medical', label: '饮食禁忌', type: 'text', key: 'n_forbid', d: '—' }
+            ]
+        },
+        {
+            id: 'training',
+            icon: 'fa-dumbbell',
+            title: '训练计划',
+            meta: '第 12 周期 · 强度期',
+            table: {
+                key: 'training',
+                cols: [
+                    { title: '日期', type: 'text', width: '3.5rem' },
+                    { title: '内容', type: 'text', width: 'auto' },
+                    { title: '时长', type: 'text', width: '5rem' },
+                    { title: '状态', type: 'pill', width: '4.5rem' }
+                ],
+                rows: [
+                    ['周一', '上肢力量 · 推', '75 min', '完成'],
+                    ['周二', '战术跑 8 km', '38 min', '完成'],
+                    ['周三', '下肢力量 · 拉', '80 min', '完成'],
+                    ['周四', '主动恢复 · 游泳 1.5 km', '45 min', '完成'],
+                    ['周五', '攀岩 · 抱石', '90 min', '今日'],
+                    ['周六', '负重行军 12 km', '110 min', '计划'],
+                    ['周日', '完全休息 · 拉伸', '20 min', '计划']
+                ]
+            },
+            rows: [
+                { icon: 'fa-fire', label: '周训练负荷', type: 'combo', key: 't_load', d: ['418 AU', '较上周 +6%'] },
+                { icon: 'fa-battery-half', label: '恢复状态', type: 'combo', key: 't_recover', d: ['HRV 68 ms 良好', '静息心率稳定'] },
+                { icon: 'fa-bandage', label: '伤病监测', type: 'combo', key: 't_injury', d: ['左膝旧伤 无症状', '右肩紧张度 2/5'] }
+            ]
+        },
+        {
+            id: 'ability',
+            icon: 'fa-crosshairs',
+            title: '能力评估',
+            meta: '1–10 分',
+            ratings: [
+                { label: '耐力', key: 'r_endo', d: 9 },
+                { label: '爆发力', key: 'r_power', d: 8 },
+                { label: '敏捷', key: 'r_agility', d: 8.5 },
+                { label: '力量', key: 'r_strength', d: 9 },
+                { label: '射击精度', key: 'r_aim', d: 9.4 },
+                { label: '观察力', key: 'r_observe', d: 8.6 },
+                { label: '团队协作', type: 'score', key: 'r_team', d: 8 },
+                { label: '技术拆解', key: 'r_tech', d: 9.6 }
+            ]
+        },
+        {
+            id: 'timeline',
+            icon: 'fa-clock-rotate-left',
+            title: '今日时间线',
+            meta: '已记录 11 项',
+            timeline: {
+                key: 'timeline',
+                rows: [
+                    ['06:30', '起床 · 晨间测量', '体重 78.5 kg · 静息心率 51 bpm', true],
+                    ['06:50', '晨跑 5 km', '配速 4\'42" · 平均心率 142 bpm', true],
+                    ['07:40', '早餐', '燕麦 80g · 鸡蛋 3 个 · 蓝莓 · 620 kcal', true],
+                    ['09:00', '战术简报', '90 分钟 · 专注度 91%', true],
+                    ['11:30', '力量训练 · 上肢推', '卧推 4×6 · 肩推 3×8 · 总容量 8.4 t', true],
+                    ['12:50', '午餐', '鸡胸 200g · 糙米 150g · 西兰花 · 780 kcal', true],
+                    ['14:00', '射击训练场', '25 m 精度 96 环 · 反应时 178 ms', true],
+                    ['16:20', '阅读 · 战术史', '45 分钟 · 12 页笔记', true],
+                    ['18:00', '攀岩馆 · 抱石', '预约中 · 预计 90 分钟', false],
+                    ['20:30', '晚餐', '三文鱼 180g · 藜麦 · 沙拉 · 820 kcal', false],
+                    ['22:30', '入睡', '目标 7.5 小时 · 房间温度 19 °C', false]
+                ]
+            }
+        }
+    ],
+
+    /* ---------------- 辅助档案（三栏） ---------------- */
+    triple: [
+        {
+            id: 'profile',
+            icon: 'fa-id-card-clip',
+            title: '基础档案',
+            rows: [
+                { icon: 'fa-signature', label: '全名', type: 'text', key: 'p_fullname', d: 'Arthur J. Miller' },
+                { icon: 'fa-cake-candles', label: '生日', type: 'text', key: 'p_birth', d: '1993-04-17 · 白羊座' },
+                { icon: 'fa-venus-mars', label: '性别', type: 'text', key: 'p_sex', d: '男' },
+                { icon: 'fa-ruler-combined', label: '体型', type: 'text', key: 'p_somatotype', d: '中胚层型 · Ecto-Meso' },
+                { icon: 'fa-shoe-prints', label: '鞋码', type: 'text', key: 'p_shoe', d: 'EU 44 / US 10' },
+                { icon: 'fa-hand-fist', label: '惯用手', type: 'text', key: 'p_hand', d: '右' },
+                { icon: 'fa-tshirt', label: '服装尺码', type: 'text', key: 'p_size', d: 'L · 腰围 82 cm' },
+                { icon: 'fa-head-side-mask', label: '头盔尺寸', type: 'text', key: 'p_helmet', d: 'M (58 cm)' },
+                { icon: 'fa-droplet', label: '肤色 / 发色', type: 'text', key: 'p_look', d: '浅棕 / 深棕' },
+                { icon: 'fa-circle-info', label: '其他特征', type: 'textarea', key: 'p_other', d: '左眉疤痕 1.5 cm · 右手虎口老茧' }
+            ]
+        },
+        {
+            id: 'career',
+            icon: 'fa-briefcase',
+            title: '职业记录',
+            rows: [
+                { icon: 'fa-sitemap', label: '单位', type: 'text', key: 'c_unit', d: '联合防御部 · 战术侦察连' },
+                { icon: 'fa-user-tie', label: '职级', type: 'text', key: 'c_rank', d: '二级军士长 · E-7' },
+                { icon: 'fa-calendar-check', label: '服役', type: 'text', key: 'c_service', d: '9 年 4 月 · 2016-07 入伍' },
+                { icon: 'fa-list-check', label: '任务次数', type: 'text', key: 'c_missions', d: '142 次 · 高危 27 次' },
+                { icon: 'fa-clock', label: '执勤小时', type: 'text', key: 'c_hours', d: '18,640 h · 本年 1,240 h' },
+                { icon: 'fa-award', label: '表彰', type: 'text', key: 'c_awards', d: '银鹰勋章 ×1 · 集体嘉奖 ×4' },
+                { icon: 'fa-user-group', label: '直接下属', type: 'text', key: 'c_team', d: '6 人 · 小队规模' },
+                { icon: 'fa-book-open', label: '认证', type: 'text', key: 'c_cert', d: '狙击手 II · 野外医疗 · 爆破 EOD' },
+                { icon: 'fa-gauge-high', label: '近期评级', type: 'text', key: 'c_review', d: 'A · 2026 上半年度' },
+                { icon: 'fa-pen', label: '职业备注', type: 'textarea', key: 'c_note', d: '' }
+            ]
+        },
+        {
+            id: 'living',
+            icon: 'fa-campground',
+            title: '生活设定',
+            rows: [
+                { icon: 'fa-house', label: '居住', type: 'text', key: 'h_home', d: '北岸基地 3 号宿舍 · 单人间 28 m²' },
+                { icon: 'fa-wallet', label: '月支出', type: 'text', key: 'h_spend', d: '2,480 信用点 · 储蓄率 46%' },
+                { icon: 'fa-paw', label: '宠物', type: 'text', key: 'h_pet', d: '黑猫 "Nyx" · 3 岁 · 已绝育' },
+                { icon: 'fa-motorcycle', label: '载具', type: 'text', key: 'h_vehicle', d: 'KTM 690 越野摩托' },
+                { icon: 'fa-language', label: '语言', type: 'text', key: 'h_lang', d: '英语 (母语) · 德语 (C1) · 俄语 (B1)' },
+                { icon: 'fa-graduation-cap', label: '学历', type: 'text', key: 'h_edu', d: '军事学院 · 侦察专业' },
+                { icon: 'fa-comments', label: '通讯频率', type: 'text', key: 'h_contact', d: '每周与家人通话 2 次' },
+                { icon: 'fa-icons', label: '日常习惯', type: 'text', key: 'h_habit', d: '晨跑 · 记日记 · 睡前列清单' },
+                { icon: 'fa-heart-pulse', label: '自我调节', type: 'text', key: 'h_relax', d: '冥想 15 分钟 · 周末徒步' },
+                { icon: 'fa-quote-left', label: '自我描述', type: 'textarea', key: 'h_self', d: '习惯把计划写下来，执行时反而更放松。' }
+            ]
+        }
+    ],
+
+    /* ---------------- 数据来源 ---------------- */
+    sources: {
+        icon: 'fa-database',
+        title: '数据来源',
+        meta: '最后同步 08:42',
+        cols: [
+            { title: '数据源', type: 'text', width: 'auto' },
+            { title: '类型', type: 'text', width: '7rem' },
+            { title: '覆盖指标', type: 'text', width: 'auto' },
+            { title: '同步频率', type: 'text', width: '6rem' },
+            { title: '状态', type: 'pill', width: '5rem' }
+        ],
+        rows: [
+            ['腕带 Vital-3', '可穿戴', '心率 · 体温 · 血氧 · 步数 · 睡眠', '60 秒', '在线'],
+            ['InBody 970', '体成分仪', '肌肉量 · 体脂率 · 水分 · 内脏脂肪', '每月 1 次', '已同步'],
+            ['饮食记录 App', '手动录入', '热量 · 三大营养素 · 钠 · 饮水', '每餐', '连续 6 天'],
+            ['训练日志', '手动录入', '组数 · 容量 · 负荷 · 主观疲劳', '每次训练', '完整'],
+            ['医疗档案系统', '机构接口', '体检 · 疫苗 · 用药 · 影像', '每季', '高权限'],
+            ['睡眠实验室', '机构接口', '睡眠分期 · AHI · SpO₂', '每年 1 次', '最近 2025-09']
+        ]
+    }
+};
+
+/* =========================================================================
+   状态
+   ========================================================================= */
+const STORE_KEY = 'character_profile_v1';
+let DATA = defaults();
+let editMode = false;
+
+function deepClone(o) { return JSON.parse(JSON.stringify(o)); }
+
+/* 把 schema 转成「纯数据」，键路径与 schema 一一对应 */
+function defaults() {
+    const header = {
+        avatar: SCHEMA.header.avatar,
+        name: SCHEMA.header.name,
+        subhead: SCHEMA.header.subhead.map(s => ({ value: s.d })),
+        badges: SCHEMA.header.badges.map(b => ({ value: b.d })),
+        metrics: SCHEMA.header.metrics.map(m => ({ value: m.value, label: m.label }))
+    };
+
+    const card = (c) => {
+        const o = {};
+        if (c.rows) {
+            o.rows = {};
+            c.rows.forEach(r => {
+                o.rows[r.key] = deepClone(r.d);
+                o.rows[r.key + '__extra'] = r.extra || '';
+            });
+        }
+        if (c.vitals) o.vitals = c.vitals.map(v => ({ value: v.value }));
+        if (c.bars) o.bars = c.bars.map(b => ({ value: b.value, pct: b.pct }));
+        if (c.ratings) o.ratings = c.ratings.map(r => ({ value: r.d }));
+        if (c.table) o[c.table.key] = { rows: c.table.rows.map(r => r.slice()) };
+        if (c.chart) o[c.chart.key] = { values: c.chart.values.slice() };
+        if (c.timeline) o.timeline = { rows: c.timeline.rows.map(r => r.slice()) };
+        return o;
+    };
+
+    return {
+        header,
+        left: SCHEMA.left.map(card),
+        right: SCHEMA.right.map(card),
+        triple: SCHEMA.triple.map(card),
+        sources: { rows: SCHEMA.sources.rows.map(r => r.slice()) }
+    };
+}
+
+/* 按点路径读写 */
+function getPath(obj, path) {
+    return path.split('.').reduce((o, k) => (o == null ? o : o[k]), obj);
+}
+function setPath(obj, path, val) {
+    const parts = path.split('.');
+    const last = parts.pop();
+    const tgt = parts.reduce((o, k) => (o[k] = o[k] ?? {}), obj);
+    tgt[last] = val;
+}
+
+/* =========================================================================
+   工具
+   ========================================================================= */
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+
+function esc(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function toast(msg) {
+    const t = $('#toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+function pillClass(v) {
+    const s = String(v);
+    if (/优秀|完成|达标|在线|已同步|正常|完整|合格|顶尖/.test(s)) return 'ok';
+    if (/超|偏高|紧张|连续|待|注意/.test(s)) return 'warn';
+    if (/危险|异常|失败|禁用/.test(s)) return 'danger';
+    if (/今日|高权限|顶尖/.test(s)) return 'info';
+    return 'mute';
+}
+
+/* =========================================================================
+   渲染：头部
+   ========================================================================= */
+function renderHeader() {
+    const h = DATA.header;
+    $('#avatar').textContent = (h.avatar || '?').slice(0, 1).toUpperCase();
+    $('#charName').textContent = h.name || '未命名角色';
+
+    $('#subhead').innerHTML = SCHEMA.header.subhead.map((s, i) => {
+        const v = h.subhead[i]?.value ?? '';
+        return `<span class="view-only"><i class="fas ${s.icon}"></i>${esc(v)}</span>
+                <span class="edit-only field">
+                    <i class="fas ${s.icon}" style="color:var(--accent)"></i>
+                    <input class="inp auto" data-path="header.subhead.${i}.value" value="${esc(v)}" placeholder="${esc(s.label)}">
+                </span>`;
+    }).join('');
+
+    $('#badgeGroup').innerHTML = SCHEMA.header.badges.map((b, i) => {
+        const v = h.badges[i]?.value ?? '';
+        return `<span class="badge view-only"><i class="fas ${b.icon}"></i>${esc(v)}</span>
+                <span class="edit-only field" style="width:auto">
+                    <input class="inp" data-path="header.badges.${i}.value" value="${esc(v)}" placeholder="标签 ${i + 1}" style="width:11rem">
+                </span>`;
+    }).join('');
+
+    $('#headerMetrics').innerHTML = h.metrics.map((m, i) => `
+        <div class="metric-chip">
+            <div class="metric-value view-only">${esc(m.value)}</div>
+            <input class="inp edit-only" data-path="header.metrics.${i}.value" value="${esc(m.value)}" style="text-align:center;font-weight:700">
+            <div class="metric-label">${esc(m.label)}</div>
+        </div>`).join('');
+}
+
+/* =========================================================================
+   渲染：通用字段行
+   ========================================================================= */
+function renderRow(row, base) {
+    const path = `${base}.${row.key}`;
+    const val = getPath(DATA, path);
+
+    const view = rowView(row, val);
+    const edit = rowEdit(row, path, val);
+
+    return `<div class="stat-row">
+        <span class="stat-label"><i class="fas ${row.icon}"></i> ${esc(row.label)}</span>
+        <span class="stat-value">
+            <span class="view-only" style="display:contents">${view}</span>
+            <span class="field">${edit}</span>
+        </span>
+    </div>`;
+}
+
+function rowView(row, val) {
+    const extra = row.extra ? `<span class="note">${esc(row.extra)}</span>` : '';
+    switch (row.type) {
+        case 'num':
+            return `<strong>${esc(val)}</strong> <span class="unit">${esc(row.unit || '')}</span>${extra}`;
+        case 'combo':
+            return (Array.isArray(val) ? val : [val]).map(v => `<span>${esc(v)}</span>`).join('') + extra;
+        case 'tags':
+            return `<div class="hobby-tags">${(val || []).map(t => `<span class="hobby-tag">${esc(t)}</span>`).join('')}</div>`;
+        case 'textarea':
+            return `<span style="white-space:pre-wrap">${esc(val || '—')}</span>`;
+        default:
+            return `<span>${esc(val)}</span>${extra}`;
+    }
+}
+
+function rowEdit(row, path, val) {
+    const extraInp = `<input class="inp small edit-only" data-path="${path}__extra" value="${esc(row.extra || '')}" placeholder="备注">`;
+    switch (row.type) {
+        case 'num':
+            return `<input class="inp nano edit-only" type="text" data-path="${path}" value="${esc(val)}">
+                    <span class="unit">${esc(row.unit || '')}</span>${extraInp}`;
+        case 'combo': {
+            const arr = Array.isArray(val) ? val : [val];
+            return arr.map((v, i) =>
+                `<input class="inp auto edit-only" data-path="${path}.${i}" value="${esc(v)}"
+                        placeholder="${esc(row.labels?.[i] || '值 ' + (i + 1))}">`).join('') + extraInp;
+        }
+        case 'tags':
+            return `<div class="tag-editor edit-only" data-tagpath="${path}">
+                        ${(val || []).map((t, i) => `<span class="hobby-tag">${esc(t)}<i class="fas fa-xmark x" data-tagdel="${path}.${i}"></i></span>`).join('')}
+                        <button class="tag-add" data-tagadd="${path}">+ 添加</button>
+                    </div>`;
+        case 'textarea':
+            return `<textarea class="inp edit-only" rows="2" data-path="${path}" placeholder="填写内容…">${esc(val || '')}</textarea>`;
+        default:
+            return `<input class="inp auto edit-only" data-path="${path}" value="${esc(val)}">${extraInp}`;
+    }
+}
+
+/* =========================================================================
+   渲染：卡片
+   ========================================================================= */
+function renderCard(card, base) {
+    let inner = '';
+
+    if (card.rows) {
+        inner += `<div class="stats-list">${card.rows.map(r => renderRow(r, base)).join('')}</div>`;
+    }
+
+    if (card.vitals) {
+        inner += `<div class="vital-highlight">${card.vitals.map((v, i) => `
+            <div class="vital-item">
+                <i class="fas ${v.icon}"></i>
+                <span class="view-only">${esc(v.value)}</span>
+                <input class="inp edit-only" data-path="${base}.vitals.${i}.value" value="${esc(v.value)}" style="width:6rem">
+                <span class="small-unit">${esc(v.label)}</span>
+            </div>`).join('')}</div>`;
+    }
+
+    if (card.bars) {
+        inner += `<div class="bar-group">${card.bars.map((b, i) => `
+            <div class="bar-item">
+                <div class="bar-top">
+                    <span>${esc(b.label)}</span>
+                    <span class="view-only" style="font-weight:600;color:#0f172a">${esc(b.value)}</span>
+                    <input class="inp tiny edit-only" data-path="${base}.bars.${i}.value" value="${esc(b.value)}">
+                </div>
+                <div class="bar-track"><div class="bar-fill ${b.color}" style="width:${Math.max(0, Math.min(100, b.pct))}%"></div></div>
+                <div class="bar-scale">${(b.scale || []).map(s => `<span>${esc(s)}</span>`).join('')}</div>
+            </div>`).join('')}</div>`;
+    }
+
+    if (card.table) {
+        inner += renderTable(card.table, base);
+    }
+
+    if (card.ratings) {
+        inner += `<div class="stats-list" style="gap:0.7rem">${card.ratings.map((r, i) => {
+            const v = Number(r.value ?? 0);
+            const dots = Array.from({ length: 10 }, (_, k) =>
+                `<i class="rating-dot ${k < Math.round(v) ? 'on' : ''} ${k < Math.round(v) && v >= 8.5 ? 'high' : ''}"></i>`).join('');
+            return `<div class="rating-row">
+                <span class="rating-name">${esc(r.label)}</span>
+                <span class="rating-dots view-only">${dots}</span>
+                <input class="score-slider edit-only" type="range" min="0" max="10" step="0.1"
+                       data-path="${base}.ratings.${i}.value" value="${v}">
+                <span class="rating-num">${v.toFixed(1)}</span>
+            </div>`;
+        }).join('')}</div>`;
+    }
+
+    if (card.chart) {
+        inner += renderChart(card.chart, base);
+    }
+
+    if (card.timeline) {
+        inner += `<div class="timeline">${card.timeline.rows.map((r, i) => `
+            <div class="tl-item">
+                <span class="tl-time">
+                    <span class="view-only">${esc(r.time)}</span>
+                    <input class="inp edit-only" data-path="${base}.timeline.rows.${i}.time" value="${esc(r.time)}" style="width:3.6rem">
+                </span>
+                <span class="tl-dot ${r.done ? 'done' : ''}"></span>
+                <div class="tl-body">
+                    <strong class="view-only">${esc(r.title)}</strong>
+                    <input class="inp edit-only" data-path="${base}.timeline.rows.${i}.title" value="${esc(r.title)}">
+                    <span class="tl-note view-only">${esc(r.note)}</span>
+                    <input class="inp edit-only" data-path="${base}.timeline.rows.${i}.note" value="${esc(r.note)}" placeholder="备注">
+                </div>
+            </div>`).join('')}</div>`;
+    }
+
+    if (card.trend) {
+        inner += `<div class="trend-foot">${card.trend.map(t =>
+            `<span><i class="fas fa-arrow-trend-${t.dir}" style="color:${t.dir === 'up' ? '#10b981' : '#ef4444'}"></i> ${esc(t.text)}</span>`
+        ).join('')}</div>`;
+    }
+
+    return `<div class="data-card">
+        <div class="card-header">
+            <i class="fas ${card.icon}"></i>
+            <h2>${esc(card.title)}</h2>
+            ${card.meta ? `<span class="card-meta">${esc(card.meta)}</span>` : ''}
+        </div>
+        ${inner}
+    </div>`;
+}
+
+/* =========================================================================
+   渲染：表格
+   ========================================================================= */
+function renderTable(t, base) {
+    const rows = t.rows.map((r, i) => {
+        const cells = t.cols.map((c, j) => {
+            const v = r[c.title] ?? r[j] ?? '';
+            if (c.type === 'pill') {
+                return `<td>
+                    <span class="pill ${pillClass(v)} view-only">${esc(v)}</span>
+                    <input class="inp edit-only" data-path="${base}.${t.key}.rows.${i}.${j}" value="${esc(v)}" style="width:5rem">
+                </td>`;
+            }
+            const cls = /成绩|摄入|目标|时长|数值/.test(c.title) ? 'num' : '';
+            return `<td class="${cls}">
+                <span class="view-only">${esc(v)}</span>
+                <input class="inp edit-only" data-path="${base}.${t.key}.rows.${i}.${j}" value="${esc(v)}">
+            </td>`;
+        }).join('');
+        return `<tr>${cells}
+            <td class="edit-only" style="width:2rem">
+                <button class="row-del" data-rowdel="${base}.${t.key}.rows.${i}" title="删除本行"><i class="fas fa-xmark"></i></button>
+            </td></tr>`;
+    }).join('');
+
+    return `<div class="table-scroll">
+        <table class="mini-table">
+            <thead><tr>${t.cols.map(c => `<th>${esc(c.title)}</th>`).join('')}<th class="edit-only"></th></tr></thead>
+            <tbody>${rows}</tbody>
+        </table>
+    </div>
+    <button class="row-add" data-rowadd="${base}.${t.key}.rows" data-colcount="${t.cols.length}">
+        <i class="fas fa-plus"></i> 添加一行
+    </button>`;
+}
+
+/* =========================================================================
+   渲染：周柱状图
+   ========================================================================= */
+function renderChart(c, base) {
+    const max = c.max || 10;
+    const bars = c.values.map((v, i) => {
+        const pct = Math.max(2, Math.min(100, (v / max) * 100));
+        const hot = v >= max * 0.92;
+        return `<div class="bar-col ${hot ? 'hot' : ''}">
+            <span class="bar-val">${v}</span>
+            <div class="bar" style="height:${pct}%"></div>
+            <span class="bar-day">${esc(c.days[i])}</span>
+        </div>`;
+    }).join('');
+
+    const editRow = c.values.map((v, i) =>
+        `<input class="inp nano edit-only" type="number" step="0.1" data-path="${base}.${c.key}.values.${i}" value="${v}" title="${esc(c.days[i])}">`
+    ).join('');
+
+    return `<div class="chart-wrap">
+        <div class="chart-title"><span>${esc(c.title)}</span><em>目标 ${esc(c.goal)}${esc(c.unit || '')}</em></div>
+        <div class="bar-chart view-only">${bars}</div>
+        <div class="field edit-only" style="gap:0.3rem">${editRow}</div>
+    </div>`;
+}
+
+/* =========================================================================
+   主渲染
+   ========================================================================= */
+function render() {
+    $('#sheet').classList.toggle('edit-mode', editMode);
+    renderHeader();
+
+    $('#colLeft').innerHTML = SCHEMA.left.map((c, i) => renderCard(withData(c, 'left', i), `left.${i}`)).join('');
+    $('#colRight').innerHTML = SCHEMA.right.map((c, i) => renderCard(withData(c, 'right', i), `right.${i}`)).join('');
+    $('#tripleGrid').innerHTML = SCHEMA.triple.map((c, i) => renderCard(withData(c, 'triple', i), `triple.${i}`)).join('');
+
+    renderSources();
+    bindInputs();
+    updateCompletion();
+}
+
+/* 把 DATA 里的值合并进 schema 结构，便于渲染 */
+function withData(card) {
+    const out = deepClone(card);
+    const base = findBase(card);
+    const d = getPath(DATA, base);
+    if (!d) return out;
+
+    if (out.rows && d.rows) {
+        out.rows.forEach(r => {
+            r.value = d.rows[r.key];
+            if (r.key + '__extra' in d.rows) r.extra = d.rows[r.key + '__extra'];
+        });
+    }
+    if (out.vitals && d.vitals) out.vitals.forEach((v, i) => v.value = d.vitals[i]?.value ?? v.value);
+    if (out.bars && d.bars) out.bars.forEach((b, i) => {
+        if (d.bars[i]) { b.value = d.bars[i].value; b.pct = d.bars[i].pct ?? b.pct; }
+    });
+    if (out.ratings && d.ratings) out.ratings.forEach((r, i) => r.value = d.ratings[i]?.value ?? r.value);
+    if (out.table && d[out.table.key]) out.table.rows = d[out.table.key].rows;
+    if (out.chart && d[out.chart.key]) out.chart.values = d[out.chart.key].values;
+    if (out.timeline && d.timeline) {
+        out.timeline.rows = d.timeline.rows.map(r => ({ time: r[0], title: r[1], note: r[2], done: r[3] }));
+    }
+    return out;
+}
+
+function findBase(card) {
+    const find = list => list.findIndex(c => c.id === card.id);
+    let i = find(SCHEMA.left);
+    if (i >= 0) return `left.${i}`;
+    i = find(SCHEMA.right);
+    if (i >= 0) return `right.${i}`;
+    i = find(SCHEMA.triple);
+    if (i >= 0) return `triple.${i}`;
+    return '';
+}
+
+function renderSources() {
+    const s = SCHEMA.sources;
+    const rows = DATA.sources.rows.map((r, i) => {
+        const cells = s.cols.map((c, j) => {
+            const v = r[j] ?? '';
+            if (c.type === 'pill') {
+                return `<td><span class="pill ${pillClass(v)} view-only">${esc(v)}</span>
+                    <input class="inp edit-only" data-path="sources.rows.${i}.${j}" value="${esc(v)}" style="width:5rem"></td>`;
+            }
+            return `<td><span class="view-only">${esc(v)}</span>
+                <input class="inp edit-only" data-path="sources.rows.${i}.${j}" value="${esc(v)}"></td>`;
+        }).join('');
+        return `<tr>${cells}<td class="edit-only" style="width:2rem">
+            <button class="row-del" data-rowdel="sources.rows.${i}"><i class="fas fa-xmark"></i></button></td></tr>`;
+    }).join('');
+
+    $('#sourceStack').innerHTML = `<div class="data-card">
+        <div class="card-header"><i class="fas ${s.icon}"></i><h2>${esc(s.title)}</h2>
+            <span class="card-meta">${esc(s.meta)}</span></div>
+        <div class="table-scroll"><table class="mini-table">
+            <thead><tr>${s.cols.map(c => `<th>${esc(c.title)}</th>`).join('')}<th class="edit-only"></th></tr></thead>
+            <tbody>${rows}</tbody>
+        </table></div>
+        <button class="row-add" data-rowadd="sources.rows" data-colcount="${s.cols.length}">
+            <i class="fas fa-plus"></i> 添加一行
+        </button>
+    </div>`;
+}
+
+/* =========================================================================
+   输入绑定
+   ========================================================================= */
+function bindInputs() {
+    $$('[data-path]').forEach(el => {
+        if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+            el.addEventListener('input', e => {
+                const p = e.target.dataset.path;
+                if (!p) return;
+                const v = e.target.value;
+                setPath(DATA, p, e.target.type === 'range' ? Number(v) : v);
+                saveSoon();
+                if (e.target.type === 'range') {
+                    const numEl = e.target.closest('.rating-row').querySelector('.rating-num');
+                    if (numEl) numEl.textContent = Number(v).toFixed(1);
+                }
+            });
+        }
+    });
+
+    $$('[data-tagdel]').forEach(el => el.addEventListener('click', e => {
+        const p = e.currentTarget.dataset.tagdel;
+        const arr = getPath(DATA, p);
+        const parts = p.split('.');
+        const idx = parts.pop();
+        const parent = getPath(DATA, parts.join('.'));
+        parent.splice(Number(idx), 1);
+        saveSoon();
+        render();
+    }));
+
+    $$('[data-tagadd]').forEach(el => el.addEventListener('click', e => {
+        const p = e.currentTarget.dataset.tagadd;
+        const v = prompt('新增标签');
+        if (!v) return;
+        const arr = getPath(DATA, p);
+        arr.push(v.trim());
+        saveSoon();
+        render();
+    }));
+
+    $$('[data-rowdel]').forEach(el => el.addEventListener('click', e => {
+        const p = e.currentTarget.dataset.rowdel;
+        const parts = p.split('.');
+        parts.pop();
+        const parent = getPath(DATA, parts.join('.'));
+        if (parent.length <= 1) return toast('至少保留一行');
+        parent.splice(Number(p.split('.').pop()), 1);
+        saveSoon();
+        render();
+    }));
+
+    $$('[data-rowadd]').forEach(el => el.addEventListener('click', e => {
+        const p = e.currentTarget.dataset.rowadd;
+        const n = Number(e.currentTarget.dataset.colcount || 4);
+        const arr = getPath(DATA, p);
+        arr.push(Array.from({ length: n }, () => ''));
+        saveSoon();
+        render();
+    }));
+}
+
+/* =========================================================================
+   完成度
+   ========================================================================= */
+function collectFields() {
+    const out = [];
+    const walk = (o, path) => {
+        if (Array.isArray(o)) {
+            o.forEach((v, i) => walk(v, `${path}.${i}`));
+        } else if (o && typeof o === 'object') {
+            for (const k in o) walk(o[k], path ? `${path}.${k}` : k);
+        } else {
+            if (path) out.push({ path, v: o });
+        }
+    };
+    walk(DATA, '');
+    return out;
+}
+
+function updateCompletion() {
+    const fields = collectFields();
+    const filled = fields.filter(f => f.v !== '' && f.v != null).length;
+    const pct = fields.length ? Math.round((filled / fields.length) * 100) : 0;
+    $('#cfill').style.width = pct + '%';
+    $('#cnum').textContent = pct + '%';
+}
+
+/* =========================================================================
+   存储
+   ========================================================================= */
+let saveTimer = null;
+function saveSoon() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(save, 500);
+}
+
+function save(quiet) {
+    try {
+        localStorage.setItem(STORE_KEY, JSON.stringify(DATA));
+        if (!quiet) toast('已保存到本地');
+    } catch (e) {
+        toast('保存失败：' + e.message);
+    }
+}
+
+function load() {
+    try {
+        const raw = localStorage.getItem(STORE_KEY);
+        if (!raw) return false;
+        const obj = JSON.parse(raw);
+        DATA = mergeDeep(defaults(), obj);
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+function mergeDeep(base, patch) {
+    if (Array.isArray(base)) {
+        if (Array.isArray(patch)) return patch.length ? patch : base;
+        return base;
+    }
+    if (base && typeof base === 'object' && patch && typeof patch === 'object') {
+        for (const k in patch) {
+            base[k] = k in base ? mergeDeep(base[k], patch[k]) : patch[k];
+        }
+        return base;
+    }
+    return patch === undefined ? base : patch;
+}
+
+/* =========================================================================
+   工具栏交互
+   ========================================================================= */
+$('#btnEdit').addEventListener('click', () => {
+    editMode = !editMode;
+    $('#btnEdit').classList.toggle('active', editMode);
+    $('#btnEdit').innerHTML = editMode
+        ? '<i class="fas fa-eye"></i> <span>预览模式</span>'
+        : '<i class="fas fa-pen-to-square"></i> <span>填写模式</span>';
+    $('#completion').classList.toggle('show', editMode);
+    if (!editMode) save(true);
+    render();
+    toast(editMode ? '填写模式：所有数值可编辑' : '预览模式');
+});
+
+$('#btnSave').addEventListener('click', () => { save(); });
+
+$('#btnExport').addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify(DATA, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `character-${(DATA.header.name || 'profile').replace(/\s+/g, '_')}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast('已导出 JSON');
+});
+
+$('#btnImport').addEventListener('click', () => $('#fileInput').click());
+
+$('#fileInput').addEventListener('change', e => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const rd = new FileReader();
+    rd.onload = () => {
+        try {
+            const obj = JSON.parse(rd.result);
+            DATA = mergeDeep(defaults(), obj);
+            save(true);
+            render();
+            toast('导入成功');
+        } catch (err) {
+            toast('导入失败：JSON 格式错误');
+        }
+    };
+    rd.readAsText(f);
+    e.target.value = '';
+});
+
+$('#btnPrint').addEventListener('click', () => {
+    if (editMode) {
+        editMode = false;
+        $('#btnEdit').classList.remove('active');
+        $('#btnEdit').innerHTML = '<i class="fas fa-pen-to-square"></i> <span>填写模式</span>';
+        $('#completion').classList.remove('show');
+        render();
+    }
+    setTimeout(() => window.print(), 120);
+});
+
+$('#btnReset').addEventListener('click', () => {
+    if (!confirm('确定清空所有自定义数据，恢复到模板默认值？')) return;
+    localStorage.removeItem(STORE_KEY);
+    DATA = defaults();
+    render();
+    toast('已重置为模板默认值');
+});
+
+/* 快捷键 */
+document.addEventListener('keydown', e => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); save(); }
+    if (e.key === 'Escape' && editMode) $('#btnEdit').click();
+});
+
+/* =========================================================================
+   启动
+   ========================================================================= */
+load();
+render();
+if (editMode === false) $('#completion').classList.remove('show');
+</script>
+</body>
+</html>
